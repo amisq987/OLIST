@@ -184,15 +184,6 @@ avg_carrier_to_delivery = (pd.to_datetime(delivered['order_delivered_customer_da
                           pd.to_datetime(delivered['order_delivered_carrier_date'])).mean()
 orders['order_delivered_customer_date'].fillna(pd.to_datetime(orders['order_delivered_carrier_date']) + avg_carrier_to_delivery, inplace=True)
 ```
-
-```python
-products = products.drop(['product_name_lenght', 'product_description_lenght', 'product_photos_qty'], axis=1)
-products['product_category_name'] = products['product_category_name'].fillna('unknown')
-products['product_weight_g'] = products['product_weight_g'].fillna(products['product_weight_g'].median())
-products['product_length_cm'] = products['product_length_cm'].fillna(products['product_length_cm'].median())
-products['product_height_cm'] = products['product_height_cm'].fillna(products['product_height_cm'].median())
-products['product_width_cm'] = products['product_width_cm'].fillna(products['product_width_cm'].median())
-```
 ```
 orders.isnull().sum()
 ```
