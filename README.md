@@ -1,6 +1,6 @@
 # OLIST
 
-## SCOPE
+# SCOPE
 You’ve just joined Olist as a Junior Data Analyst on the Sales Optimization team. Olist is a major e-commerce platform in Brazil, known for connecting businesses with customers online. To stay ahead in a competitive market, Olist needs to enhance customer experience, optimize seller performance, improve logistics, and maximize marketing effectiveness. You’ve been given historical orders, customers, products, sellers and geolocation data. Your goal is to uncover data-driven insights that support these key focus areas—such as analyzing buyer behavior, identifying top-performing products, evaluating seller KPIs, optimizing inventory, and measuring campaign ROI. But first,Olist executives must approve your recommendations, so they must be backed up with compeling data insights and professional data visualizations. 
 
 ## Project Objective
@@ -102,8 +102,6 @@ for name, summary in missing_data_summaries.items():
 ```python
 reviews = reviews.drop('review_comment_title', axis=1)
 ```
-## Handling missing data:
-
 ```python
 for name, df in dfs.items():
     print(f"\n{name.upper()} - NULL values:")
