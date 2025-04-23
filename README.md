@@ -29,6 +29,12 @@ Here's the Entity-Relationship Diagram of the resulting SQLite database:
 import pandas as pd
 import numpy as np
 from datetime import timedelta
+import os
+import seaborn as sns
+from matplotlib import pyplot as plt
+plt.style.use('ggplot')
+import plotly.graph_objects as go
+from matplotlib.colors import LinearSegmentedColormap
 ```
 ```python
 orders = pd.read_csv("/content/drive/MyDrive/archive/olist_orders_dataset.csv")
@@ -261,6 +267,9 @@ df.duplicated().sum()
 ```
 
 # EXPLORATORY DATA ANALYSIS (EDA)
+
+## Customer Behavior Analysis
+
 
 
 
