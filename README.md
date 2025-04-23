@@ -205,12 +205,63 @@ products.isnull().sum()
 for name, df in dfs.items():
     print(f"\n{name.upper()} - Duplicates: {df.duplicated().sum()}")
 ```
-```
+```python
 geolocation.duplicated().value_counts()
 ```
-```
+```python
 geolocation = geolocation.drop_duplicates()
 geolocation.duplicated().sum()
 ```
+
+## Merge Dataframe
+
+```python
+df = orders.merge(order_items, on='order_id', how='inner')
+df = df.merge(payments, on='order_id', how='inner', validate='m:m')
+df = df.merge(reviews, on='order_id', how='inner')
+df = df.merge(products, on='product_id', how='inner')
+df = df.merge(customers, on='customer_id', how='inner')
+df = df.merge(sellers, on='seller_id', how='inner')
+df = df.merge(categories, on='product_category_name', how='inner')
+df.info()
+```
+```python
+# Create useful features from order_purchase_timestamp
+df['day_of_week_int'] = df['order_purchase_timestamp'].dt.weekday + 1  # Day of week as integer (1 = Monday, etc.)
+df['hour'] = df['order_purchase_timestamp'].dt.hour                    # Hour of day
+df['month'] = df['order_purchase_timestamp'].dt.month                  # Month as integer
+df['year'] = df['order_purchase_timestamp'].dt.year                    # Year as integer
+df['date'] = df['order_purchase_timestamp'].dt.to_period('M')          # Monthly period for time series analysis
+
+# Calculate delivery time in days
+df['delivery_time'] = (df['order_delivered_customer_date'] - df['order_purchase_timestamp']).dt.days
+```
+```python
+geo_avg = geolocation.groupby('geolocation_zip_code_prefix')[['geolocation_lat', 'geolocation_lng']].mean().reset_index()
+
+df = df.merge(geo_avg, how='left', left_on='customer_zip_code_prefix', right_on='geolocation_zip_code_prefix')
+
+df.isna().sum()
+```
+```python
+median_coords = df.groupby('customer_city')[['geolocation_lat', 'geolocation_lng']].transform('median')
+df[['geolocation_lat', 'geolocation_lng']] = df[['geolocation_lat', 'geolocation_lng']].fillna(median_coords)
+df.isna().sum()
+```
+```python
+median_lat = df['geolocation_lat'].median()
+median_lng = df['geolocation_lng'].median()
+
+df['geolocation_lat'] = df['geolocation_lat'].fillna(median_lat)
+df['geolocation_lng'] = df['geolocation_lng'].fillna(median_lng)
+df.isnull().sum()
+```
+```python
+df.duplicated().sum()
+```
+
+# EXPLORATORY DATA ANALYSIS (EDA)
+
+
 
   
