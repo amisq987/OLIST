@@ -268,7 +268,239 @@ df.duplicated().sum()
 
 # EXPLORATORY DATA ANALYSIS (EDA)
 
-## Customer Behavior Analysis
+## Initial Data Overview 
+
+```python
+df.info()
+```
+```python
+df.nunique()
+```
+```python
+df['price'].describe()
+```
+```python
+df['payment_value'].describe()
+```
+```python
+df['payment_type'].value_counts()
+```
+```python
+df['review_score'].value_counts()
+```
+```python
+print(df['order_purchase_timestamp'].min(), df['order_purchase_timestamp'].max())
+```
+```python
+# Select relevant features for correlation analysis
+correlation_features = df[['price', 'review_score', 'delivery_time',
+                            'payment_value', 'freight_value',
+                            'payment_installments', 'order_item_id',
+                            'hour', 'month']]
+
+# Calculate the correlation matrix
+correlation = correlation_features.corr()
+
+# Define the custom colormap
+custom_cmap = LinearSegmentedColormap.from_list("custom_cmap", ['green', 'white', 'darkblue'])
+
+plt.figure(figsize=(10, 8))
+sns.heatmap(correlation, annot=True, cmap=custom_cmap, vmin=-1, vmax=1, fmt=".2f", linewidths=.5)
+plt.title('Correlation Heatmap')
+plt.show()
+```
+
+## Analyze customer purchasing behavior
+
+### Monthly sales trend
+```python
+# Monthly sales trend
+monthly_sales = df.groupby(df['order_purchase_timestamp'].dt.to_period('M')).agg({'price': 'sum'})
+
+# Set the figure size for better visibility
+plt.figure(figsize=(12, 6))
+
+# Plot the data with custom colors
+plt.plot(monthly_sales.index.astype(str), monthly_sales['price'],
+         marker='o', linestyle='-', color='blue', linewidth=2)
+
+# Adding titles and labels
+plt.title('Monthly Sales Trend', fontsize=16, fontweight='bold')
+plt.xlabel('Month', fontsize=14)
+plt.ylabel('Total Sales', fontsize=14)
+
+# Customize the ticks
+plt.xticks(rotation=45, fontsize=12)
+plt.yticks(fontsize=12)
+
+# Add gridlines for better readability
+plt.grid(visible=True, linestyle='--', alpha=0.7)
+
+# Show the plot
+plt.tight_layout()
+plt.show()
+```
+- From **September 2016** to around **mid-2018**, there's a clear **upward trend** in **total sales**, indicating **consistent growth** over time.
+- The **highest peak** occurs around **November 2017**, where **sales** exceed **1 million units**. This could be linked to **seasonal events** like **Black Friday** or **holiday shopping**.
+- There's a **dramatic drop** in sales in **September 2018**. Possible reason is **missing data**.
+
+### The frequency of orders per day
+
+```python
+# Group by timestamp and aggregate order counts
+daily_orders = df.groupby(df['order_purchase_timestamp'].dt.floor('D'))['order_id'].count().reset_index()
+
+# Convert 'order_purchase_timestamp' to matplotlib dates
+dates = mdates.date2num(daily_orders['order_purchase_timestamp'])
+
+# Create the plot
+fig, ax = plt.subplots(figsize=(14, 6))
+ax.plot(dates, daily_orders['order_id'],color='blue')
+
+# Format x-axis to display dates
+date_format = mdates.DateFormatter('%Y-%m')
+ax.xaxis.set_major_formatter(date_format)
+ax.xaxis_date()
+
+# Set labels and title
+plt.ylabel('Number of orders')
+plt.title('Number of orders per day', fontsize=16, fontweight='bold')
+plt.xlabel('Month', fontsize=14)
+
+# Add grid and show the plot
+plt.grid(visible=True, linestyle='--', alpha=0.7)
+plt.tight_layout()
+plt.show()
+```
+- There's a **large spike** of **orders** around **Christmas**, specifically on the **24th of December**.
+- The **number of orders** also seems to be **increasing steadily over time** as Olist's business grows. Also notice how there's very **few data** at the **start and end** of the **timespan** covered by the dataset, so I'll exclude these dates from some of my next queries.
+
+### Heatmap of order volume by Day of Week and Hour of Day
+How are orders distributed over the week? Are more orders placed on weekends? How about during the day? Do customers place more orders in the evening? We can answer these questions using a heatmap that plots the distribution of both on a grid. 
+To plot a heatmap we need a matrix of counts of orders, where rows represent days of the week and columns represent hours of the day:
+```python
+# Convert day_of_week_int to day names
+day_map = {
+    1: 'Mon',
+    2: 'Tue',
+    3: 'Wed',
+    4: 'Thu',
+    5: 'Fri',
+    6: 'Sat',
+    7: 'Sun'
+}
+
+df['day_of_week_name'] = df['day_of_week_int'].map(day_map)
+
+# Create a pivot table: count number of orders by day and hour
+pivot_df = df.pivot_table(
+    index='day_of_week_name',
+    columns='hour',
+    values='order_id',
+    aggfunc='count',
+    fill_value=0
+)
+
+# Reorder the days properly (Sun -> Sat)
+ordered_days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+pivot_df = pivot_df.reindex(ordered_days)
+
+# Display the result table
+print(pivot_df)
+```
+With the data matrix ready, we can use seaborn to create the heatmap:
+```python
+fig, ax = plt.subplots(figsize=(14, 6))
+sns.heatmap(pivot_df, cmap='YlGnBu', cbar=False)
+mean_orders = pivot_df.mean().mean()
+for i in range(len(pivot_df)):
+    for j in range(len(pivot_df.columns)):
+        text_color = 'white' if pivot_df.iloc[i, j] > mean_orders else 'black'
+        ax.text(j+0.5, i+0.5, int(pivot_df.iloc[i, j]),
+            color=text_color, fontsize=10, ha="center", va="center")
+plt.title("Number of orders by day of the week and hour of the day")
+plt.xlabel("Hour of the day")
+plt.ylabel("")
+plt.show()
+```
+- **Most orders** were placed during the **weekdays** from **10 AM to 4 PM** with a **small dip** in sales around **12 PM** due to **lunchtime**.
+- Customers also order through Olist in the **evenings** around **9 PM** from **Sunday to Thursday**. **Saturday** is the day with the **fewest orders**, although it's still quite busy.
+- The **least busy** time of the day is from **3 to 5 AM**, although there are still a few orders during that time.
+
+### Payment behavior analysis
+
+```python
+df['payment_type'].nunique()
+```
+
+Boleto is a widely used payment method in Latin America, particularly in Brazil. Introduced in 1993, it was designed to facilitate cash payments. It functions similarly to a proforma invoice and can be paid at various locations, including ATMs, bank branches, internet banking, post offices, lottery agents, and some supermarkets, as long as it is within the due date.
+
+For better understanding, you could compare Boleto to systems like direct debit or bank transfer in many other countries, where payments are made outside the traditional credit card system, often using a pre-issued invoice or bill. A more specific comparison might be with BillPay systems in the U.S. or SEPA Direct Debit in Europe, where payments are processed through a network of banks, but Boleto is more widely accessible due to its integration with multiple payment points.
+
+```python
+payment_type_share = df['payment_type'].value_counts(normalize=True).nlargest(4)
+payment_type_share = (payment_type_share*100).round(2)
+payment_type_share
+```
+
+```python
+# Group by payment_type and aggregate
+agg_df = df.groupby('payment_type').agg(total_revenue=('payment_value', 'sum'),payment_count=('payment_value', 'count')).reset_index()
+
+# Sort by total_revenue
+agg_df = agg_df.sort_values(by='total_revenue')
+
+# Create figure with bar and line traces
+fig = go.Figure()
+
+# Bar chart for total_revenue
+fig.add_trace(go.Bar(x=agg_df['payment_type'],y=agg_df['total_revenue'],name='Total revenue',marker_color='darkblue'))
+
+# Line chart for payment_count
+fig.add_trace(go.Scatter(x=agg_df['payment_type'],y=agg_df['payment_count'],name='Payment count',yaxis='y2',mode='lines+markers',marker=dict(color='dodgerblue', size=8),line=dict(width=3)))
+
+# Layout with dual y-axes
+fig.update_layout(title=dict(text='<b>Total revenue and Payment count by Payment type</b>',x=0.5,xanchor='center'),
+    xaxis=dict(title='Payment type', showgrid=False),
+    yaxis=dict(title='Total revenue', showgrid=False),
+    yaxis2=dict(title='Payment count',overlaying='y',side='right'),
+    legend=dict(x=0.5, xanchor='center', orientation='h'),
+    bargap=0.3,width = 900, height  =700)
+
+fig.show()
+```
+- **Credit cards dominate** the landscape, accounting for a **striking 73.67%** of all **payments** and achieve the **highest total revenue** **(≈ 15M+)**. The **second most popular method, boleto bancário**, trails far behind at **19.46%** and generates **moderate revenue (≈ 4M)**, followed by **vouchers (5.43%)** and **debit cards (1.43%)** with **low revenue (less than 1M each)**. This **preference** speaks not only to **access** but also to the **flexibility** Brazilian **consumers expect**.
+
+```python
+installment_ratio = (df['payment_installments'] > 1).mean() * 100
+print(f'The proportion of installment orders: {installment_ratio:.2f}%')
+```
+- **Installments** are the **norm** — not the exception. Over **half of all credit card transactions (50.10%)** are paid in **installments**, effectively blurring the line between **affordability** and **deferred spending**.
+  
+```python
+installment_by_category = df.groupby('product_category_name_english')['payment_installments'].apply(lambda x: (x > 1).mean()).nlargest(10)
+installment_top_categories = (installment_by_category*100).round()
+plt.figure(figsize=(12, 6))
+bars = plt.barh(installment_top_categories['product_category_name_english'], installment_top_categories['payment_installments'], color='darkblue')
+plt.xlabel('Percentage of Installment Payments (%)', fontsize=12)
+plt.ylabel('Product Category', fontsize=12)
+plt.title('Top 10 Categories by Installment Usage (%)', fontsize=14, pad=20)
+plt.xlim(0, 100)
+for bar in bars:
+    width = bar.get_width()
+    plt.text(width - 5, bar.get_y() + bar.get_height()/2,
+             f'{width}%',
+             ha='right', va='center', color='white', fontweight='bold')
+plt.tight_layout()
+plt.show()
+```
+- This pattern is especially pronounced in **high-ticket** or **aspirational categories** like **PCs (75% installment rate), kitchenware, mattresses**, and **home appliances**. Even in **fashion** and **gift** categories, **installment** usage often **exceeds 60%**.
+
+In short, Brazil’s payment structure is heavily credit-driven, with strong reliance on installment plans for both essentials and lifestyle goods. Merchants and platforms that accommodate — or incentivize — this behavior are better positioned to drive conversion and basket size. Conversely, any limitations on credit usage or installment options could act as a major friction point in the purchase journey.
+
+
+
+
 
 
 
