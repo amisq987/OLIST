@@ -5,10 +5,11 @@ You’ve just joined Olist as a Junior Data Analyst on the Sales Optimization te
 
 ## Project Objective
 The project aims to ensure the objectives of the business analysis project for sales management—such as optimizing the sales process, increasing revenue and profit, gaining deeper customer insights, enhancing advertising effectiveness, improving user experience, optimizing inventory management, and forecasting market trends. Key objectives include:
--**Identify potential issues**: Propose improvements that enhance performance and reduce operational costs.
--**Analyze customer purchasing behavior** : Include purchase frequency, average order value, and popular product categories.
--**Evaluate sales performance**: Assess overall revenue, revenue by individual products or product groups, and revenue over time (daily, weekly, monthly).
--**Enhance customer experience**: Analyzing customer service metrics such as response time, satisfaction rate, and the number of complaints.
+
+- **Identify potential issues**: Propose improvements that enhance performance and reduce operational costs.
+- **Analyze customer purchasing behavior** : Include purchase frequency, average order value, and popular product categories.
+- **Evaluate sales performance**: Assess overall revenue, revenue by individual products or product groups, and revenue over time (daily, weekly, monthly).
+- **Enhance customer experience**: Analyzing customer service metrics such as response time, satisfaction rate, and the number of complaints.
 
 ## About the company
 OLIST is a prominent e-commerce platform in Brazil, offering solutions that support businesses in selling online and managing their e-commerce operations. As an integrated multi-channel platform, OLIST enables businesses to manage and sell products across multiple e-commerce marketplaces simultaneously. This includes major platforms in Brazil such as Mercado Livre, Americanas, and others, helping businesses expand their customer reach.
@@ -17,6 +18,7 @@ Moreover, the platform facilitates product listing and inventory management by a
 ## Dataset
 
 - Source: [Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
+
 The dataset has information of 100k orders from 2016 to 2018 made at multiple marketplaces in Brazil. Its features allows viewing an order from multiple dimensions: from order status, price, payment and freight performance to customer location, product attributes and finally reviews written by customers, a geolocation dataset that relates Brazilian zip codes to lat/lng coordinates.
 Here's the Entity-Relationship Diagram of the resulting SQLite database:
 <center>
@@ -268,7 +270,7 @@ df.duplicated().sum()
 
 # EXPLORATORY DATA ANALYSIS (EDA)
 
-## Initial Data Overview 
+## I. Initial Data Overview 
 
 ```python
 df.info()
@@ -310,9 +312,9 @@ plt.title('Correlation Heatmap')
 plt.show()
 ```
 
-## Analyze customer purchasing behavior
+## II. Analyze customer purchasing behavior
 
-### Monthly sales trend
+### 1. Monthly sales trend
 ```python
 # Monthly sales trend
 monthly_sales = df.groupby(df['order_purchase_timestamp'].dt.to_period('M')).agg({'price': 'sum'})
@@ -344,7 +346,7 @@ plt.show()
 - The **highest peak** occurs around **November 2017**, where **sales** exceed **1 million units**. This could be linked to **seasonal events** like **Black Friday** or **holiday shopping**.
 - There's a **dramatic drop** in sales in **September 2018**. Possible reason is **missing data**.
 
-### The frequency of orders per day
+### 2. The frequency of orders per day
 
 ```python
 # Group by timestamp and aggregate order counts
@@ -375,7 +377,7 @@ plt.show()
 - There's a **large spike** of **orders** around **Christmas**, specifically on the **24th of December**.
 - The **number of orders** also seems to be **increasing steadily over time** as Olist's business grows. Also notice how there's very **few data** at the **start and end** of the **timespan** covered by the dataset, so I'll exclude these dates from some of my next queries.
 
-### Heatmap of order volume by Day of Week and Hour of Day
+### 3. Heatmap of order volume by Day of Week and Hour of Day
 How are orders distributed over the week? Are more orders placed on weekends? How about during the day? Do customers place more orders in the evening? We can answer these questions using a heatmap that plots the distribution of both on a grid. 
 To plot a heatmap we need a matrix of counts of orders, where rows represent days of the week and columns represent hours of the day:
 ```python
@@ -427,7 +429,195 @@ plt.show()
 - Customers also order through Olist in the **evenings** around **9 PM** from **Sunday to Thursday**. **Saturday** is the day with the **fewest orders**, although it's still quite busy.
 - The **least busy** time of the day is from **3 to 5 AM**, although there are still a few orders during that time.
 
-### Payment behavior analysis
+### 4. Catogories analysis
+Let's examine Olist's product categories by volume of sales. 
+```python
+df['product_category_name_english'].nunique()
+```
+There are 71 unique product categories. We can use a treemap to plot the relative sales of each category using areas. Since it will be challenging to visualize 71 categories, I'll choose the top 18 and group the rest into 'Other categories'. To start, let's get the total sales for each category. 
+```python
+df = df[df['order_status'] == 'delivered']
+
+# Group by product_category_name_english and calculate sales
+category_sales = (
+    df.groupby('product_category_name_english_x')['price']
+    .sum()
+    .reset_index()
+    .rename(columns={'price': 'sales'})
+)
+
+# Rank by descending sales
+category_sales['rank'] = category_sales['sales'].rank(method='dense', ascending=False).astype(int)
+
+# Sort by rank
+category_sales = category_sales.sort_values('rank').reset_index(drop=True)
+
+# Rename column for clarity
+category_sales = category_sales.rename(columns={'product_category_name_english': 'category'})
+print(category_sales)
+```
+
+We'll use the rank column to take the first 18th categories by sales and aggregate the rest as 'Other categories'
+```python
+# Separate top 18 categories
+top_18 = category_sales[category_sales['rank'] <= 18]
+
+# Aggregate "Other categories"
+others = category_sales[category_sales['rank'] > 18]
+others_sum = others['sales'].sum()
+
+# Create a DataFrame for "Other categories"
+other_row = pd.DataFrame([{
+    'product_category_name_english_x': 'Other categories',
+    'sales': others_sum,
+    'rank': None  # No rank needed
+}])
+
+# Combine both
+df_categories = pd.concat([top_18, other_row], ignore_index=True)
+print(df_categories)
+```
+Let's visualize this data using a treemap built with squarify:
+```python
+import matplotlib.cm as cm
+plt.figure(figsize=(15, 8))
+plt.title('Sales by category')
+color = sns.color_palette("viridis", len(df_categories))
+squarify.plot(sizes=df_categories['sales'], label=df_categories['product_category_name_english_x'],
+              alpha=0.7, color=color, edgecolor="white", linewidth=2)
+plt.axis('off')
+plt.show()
+```
+- **Top-performing categories** include **bed_bath_table, watches_gifts, and health_beauty**, which occupy the largest sections of the treemap, signaling their dominance in sales volume.
+- A significant portion of sales is grouped under "Other categories", highlighting a long tail of less individually impactful but collectively substantial segments.
+
+We can gain more insight into the types of products these categories contain by visualizing the **total orders, review score, delivery time and median payment by category** using a set of bar charts.
+```python
+delivered = df[df['order_status'] == 'delivered'].copy()
+```
+```python
+palette = sns.color_palette("inferno", 20)
+top_palette = palette[-10:]
+tail_palette = palette[:10]
+
+def plot_pair(data_top, data_tail, title_top, title_tail, xlabel, ylabel,
+              xlim_top=None, xlim_bot=None):
+    fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(10, 13), dpi=120,
+                           gridspec_kw={'height_ratios': [1, 1], 'hspace': 0.5})
+
+    sns.barplot(x=data_top.values, y=data_top.index, ax=ax[0], palette=top_palette)
+    ax[0].set_title(title_top, fontsize=15, weight='bold', pad=15)
+    ax[0].set_xlabel('')
+    ax[0].set_ylabel(ylabel, labelpad=55, fontsize=13, weight='bold')
+    ax[0].spines[['top', 'right']].set_visible(False)
+    ax[0].tick_params(axis='y', labelsize=11)
+    if xlim_top:
+        ax[0].set_xlim(xlim_top)
+
+    for container in ax[0].containers:
+        ax[0].bar_label(container, padding=3, fontsize=9)
+
+    sns.barplot(x=data_tail.values, y=data_tail.index, ax=ax[1], palette=tail_palette)
+    ax[1].set_title(title_tail, fontsize=15, weight='bold', pad=20)
+    ax[1].set_xlabel(xlabel, labelpad=10, fontsize=13, weight='bold')
+    ax[1].set_ylabel(ylabel, fontsize=13, labelpad=15, weight='bold')
+    ax[1].spines[['top', 'right']].set_visible(False)
+    ax[1].tick_params(axis='y', labelsize=11)
+    if xlim_bot:
+        ax[1].set_xlim(xlim_bot)
+
+    for container in ax[1].containers:
+        ax[1].bar_label(container, padding=3, fontsize=9)
+
+    fig.canvas.draw()
+    y0 = (ax[0].get_position().y0 + ax[1].get_position().y1) / 2
+    line = plt.Line2D([-0.12, 1], [y0, y0], transform=fig.transFigure,
+                      color='gray', linestyle='--', linewidth=3)
+    fig.add_artist(line)
+
+    plt.show()
+```
+```python
+top_sales = delivered['product_category_name_english_x'].value_counts().nlargest(10)
+tail_sales = delivered['product_category_name_english_x'].value_counts().nsmallest(10)
+
+plot_pair(
+    top_sales,
+    tail_sales,
+    'Top 10 Best-Selling Categories',
+    'Top 10 Least-Selling Categories',
+    xlabel='Number of Orders',
+    ylabel='Product Category'
+)
+```
+```python
+average_rating_top = delivered.groupby('product_category_name_english_x')['review_score'].mean().round(3).nlargest(10)
+average_rating_tail = delivered.groupby('product_category_name_english_x')['review_score'].mean().round(3).nsmallest(10)
+
+plot_pair(
+    average_rating_top,
+    average_rating_tail,
+    'Top 10 Categories by Average Rating',
+    'Bottom 10 Categories by Average Rating',
+    xlabel='Average Rating',
+    ylabel='Product Category',
+    xlim_top=(0, 5),
+    xlim_bot=(0, 5)
+)
+```
+```python
+mean_deliv_time_top = delivered.groupby('product_category_name_english_x')['delivery_days'].mean().round().fillna(0).astype('int64').nlargest(10)
+mean_deliv_time_tail = delivered.groupby('product_category_name_english_x')['delivery_days'].mean().round().fillna(0).astype('int64').nsmallest(10)
+
+plot_pair(
+    mean_deliv_time_top,
+    mean_deliv_time_tail,
+    'Top 10 Slowest Delivery Categories',
+    'Top 10 Fastest Delivery Categories',
+    xlabel='Average Delivery Time (days)',
+    ylabel='Product Category',
+    xlim_bot=(0,20)
+)
+```
+```python
+mean_payment_top = delivered.groupby('product_category_name_english_x')['payment_value'].median().round().astype('int64').nlargest(10)
+mean_payment_tail = delivered.groupby('product_category_name_english_x')['payment_value'].median().round().astype('int64').nsmallest(10)
+
+plot_pair(
+    mean_payment_top,
+    mean_payment_tail,
+    'Top 10 Most Expensive Categories (Median Payment)',
+    'Top 10 Least Expensive Categories (Median Payment)',
+    xlabel='Median Payment Value',
+    ylabel='Product Category',
+    xlim_bot=(0, 800)
+)
+```
+#### Summary
+
+**Key Takeaways from the Product Categories Deep Dive**
+
+**1. Sales Concentration**
+
+Demand is heavily skewed toward essential, utility-based categories like bed_bath_table, beauty_health, and sports_leisure. In contrast, niche or poorly maintained categories like insurance_services and pc_gamer generate negligible value.
+
+**2. Customer Satisfaction ≠ Sales**
+
+Categories such as books, cds_dvds_music, and fashion_children_clothing earn high ratings despite low sales. On the flip side, some mid-volume categories (e.g., office_furniture, men’s_clothing, landline_phones) suffer from consistently low feedback — a warning sign, not just a blip.
+
+**3. Delivery Time Issues**
+
+Slow logistics plague products like office_furniture and mattresses, taking over 2 weeks to deliver, harming satisfaction. Conversely, categories like arts_crafts, children’s_clothing, and imported_books prove fast shipping is achievable in 5–8 days.
+
+**4. Spending Behavior**
+
+A stark divide exists between luxury and low-cost goods. While pcs, coffee ovens, and furniture draw high average order values, categories like telephony and flowers average under ₱70 — with some expensive segments performing poorly due to slow delivery and low satisfaction.
+
+**5. Operational Black Holes**
+
+Categories combining low volume, poor reviews, and slow shipping (e.g., insurance_services, office_furniture, home_comfort_2) are deemed non-viable. The focus should shift to fast-moving, well-reviewed essentials with efficient logistics.
+
+### 5. Payment behavior analysis
 
 ```python
 df['payment_type'].nunique()
@@ -496,12 +686,83 @@ plt.show()
 ```
 - This pattern is especially pronounced in **high-ticket** or **aspirational categories** like **PCs (75% installment rate), kitchenware, mattresses**, and **home appliances**. Even in **fashion** and **gift** categories, **installment** usage often **exceeds 60%**.
 
-In short, Brazil’s payment structure is heavily credit-driven, with strong reliance on installment plans for both essentials and lifestyle goods. Merchants and platforms that accommodate — or incentivize — this behavior are better positioned to drive conversion and basket size. Conversely, any limitations on credit usage or installment options could act as a major friction point in the purchase journey.
+#### Summary
+In short, **Brazil’s payment structure** is heavily **credit-driven**, with strong reliance on **installment plans** for both **essentials and lifestyle goods**. **Merchants** and **platforms** that **accommodate** — or **incentivize** — this behavior are better positioned to drive **conversion** and **basket size**. Conversely, any **limitations** on **credit usage** or **installment options** could act as a major **friction point** in the **purchase journey**.
 
+## III. Identify potential issues
 
+Our database also includes an order_reviews table. Users can score an order from 1 to 5 and write a comment on the order. 
+Let's count how many orders there are for each review score:
+```python
+plt.figure(figsize=(8,5), dpi=120)
+sns.countplot(x=df['review_score'], palette='Blues_r')
+plt.title('Distribution of scores', fontsize=17, fontweight='bold', pad=7);
+plt.ylabel('Frequency')
+plt.xlabel('Review Score')
+```
+We can see that most review scores are very positive, but there's also a fair number of unsatisfied customers. 
 
+```python
+total_rev = df.groupby('review_score')['review_id'].count()
+miss_rev = df[df['review_comment_message'].isnull()].groupby('review_score')['review_id'].count()
+res = 100 - (miss_rev / total_rev).fillna(0)*100
+fig = plt.figure(figsize=(8,4), dpi=150)
+ax = sns.barplot(x=res.index, y=res.values, palette='Blues_r')
 
+for i, v in enumerate(res.values):
+    ax.text(i, v + 2, f"{v:.1f}%", ha='center', fontsize=12, fontweight='bold')
 
+plt.title("Share of Reviews with Comments by Review Score")
+plt.xlabel("Review Score")
+plt.ylabel("Comment Share (%)")
+plt.ylim(0, 100);
+```
+- Missing review comments reveals that negative reviews (1-2 stars) are more likely to contain written feedback, while higher ratings (4-5 stars) often lack text comments. This suggests that dissatisfied customers tend to provide detailed feedback, whereas satisfied customers typically leave only a rating.
+
+What's the cause? To answer this question, let's create a word cloud of the comments with a score of 1 or 2. 
+
+```python
+# Filter for reviews with scores 1 or 2
+negative_reviews = df[df['review_score'].isin([1, 2])]
+# Combine all negative comments into a single string
+negative_comments_df = ' '.join(negative_reviews['review_comment_message'].dropna().astype(str).tolist())
+```
+```python
+from wordcloud import WordCloud
+
+wordcloud = WordCloud(width=1600, height=800, background_color='white').generate(negative_comments_df)
+plt.figure(figsize=(15, 8))
+plt.imshow(wordcloud)
+plt.axis("off")
+plt.show()
+```
+Word cloud analysis of customer reviews highlights key themes related to product delivery, timing, and quality. The most frequently used words (translated from Portuguese) include:
+
+- produto → product
+- entregue → delivered
+- chegou → arrived
+- prazo → deadline / delivery time
+- recebi → received
+- não → not
+- bom → good
+- antes → before / earlier
+- compra → purchase
+- qualidade → quality
+
+This indicates that many reviews focus on **delivery timing issues** ("prazo", "chegou antes"), **product reception** ("recebi", "entregue"), and **quality feedback** ("bom", "qualidade").
+Negative sentiment is also visible through words like "não" (not) and "ainda" (still, as in "still not received").
+
+### 1. Delivery
+
+As we saw at the start of this analysis, the orders table contains various timestamps:
+
+- order_purchase_timestamp: The order is placed by the customer.
+- order_approved_at: The order is approved by Olist.
+- order_delivered_carrier_date: The order is handed to the shipping company.
+- order_delivered_customer_date: The customer receives the order.
+- order_estimated_delivery_date: Delivery date estimation.
+
+Each of these timestamps marks a change in the order shipping process.
 
 
 
