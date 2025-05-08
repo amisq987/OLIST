@@ -859,8 +859,7 @@ for spine in ['top', 'right']:
 
 plt.show()
 ```
-#### Summary
-
+**Delivery Time Breakdown**
 🕒 **Approval Time**
 - True median ≈ 20 minutes (despite appearing as 0h on graph)
 - Shows high system efficiency with little manual intervention
@@ -904,8 +903,239 @@ stat, p = mannwhitneyu(early, late, alternative='two-sided')
 print(f"U-statistic: {stat:.2f}, p-value: {p:.10f}")
 ```
 - Statistical test confirms the obvious: the difference in review scores between early and late deliveries is highly significant (Mann-Whitney U, p < 1e-10). The effect of delivery timing on customer satisfaction is not only visible — it's statistically indisputable.
+
+```python
+delay = df.groupby('customer_state')['delivery_delay'].agg(['median', 'count'])
+top_states = delay.sort_values('count', ascending=False).head(10).sort_values('median')
+
+plt.figure(figsize=(10, 6), dpi=120)
+
+palette = ['salmon' if val < 0 else 'springgreen' for val in top_states['median']]
+ax = sns.barplot(
+    x='median',
+    y=top_states.index,
+    data=top_states,
+    palette=palette
+)
+
+plt.axvline(0, color='gray', linestyle='--', linewidth=3)
+
+x_min = top_states['median'].min() - 1
+plt.xlim(x_min, 5)
+
+for i, val in enumerate(top_states['median']):
+    ax.text(val + (0.3 if val >= 0 else -0.3), i, f"{val:.1f}d",
+            color='black', ha='left' if val >= 0 else 'right', fontweight='bold')
+
+plt.title("Median Delivery Delay by State (Top 10 by Order Count)")
+plt.xlabel("Median Delivery Delay (days)")
+plt.ylabel("Customer State")
+plt.tight_layout();
+```
+
+- Across all states, deliveries tend to arrive ahead of the estimated date.
+- Among the 10 states with the highest order volume, the median delivery delay is negative — meaning early delivery is the norm. The fastest deliveries are seen in São Paulo (SP), Minas Gerais (MG), and Rio de Janeiro (RJ), all showing median delivery times 2–3 days earlier than expected.
+- This suggests that the estimated delivery dates may be overly conservative, and there may be room for more accurate (and competitive) estimations.
   
 ### 2. Freight Value
+
+```python
+avg_freight_value = df.groupby(df['order_purchase_timestamp'].dt.to_period('M'))['freight_value'].agg('sum').reset_index()
+avg_freight_value
+```
+```python
+avg_fr_val = []
+
+for i in range(len(avg_freight_value)):
+    current_period = avg_freight_value.loc[i,'order_purchase_timestamp']
+    filter_df = df[df['order_purchase_timestamp'].dt.to_period('M') == current_period]
+    avg_fr_val.append(np.ceil(filter_df['freight_value'].mean()))
+```
+```python
+avg_freight_value['avg_freight_value'] = avg_fr_val
+avg_freight_value
+```
+```python
+x = avg_freight_value['order_purchase_timestamp'].astype(str)
+y = avg_freight_value['avg_freight_value']
+plt.figure(figsize=(12,8))
+plt.plot(x,y,marker='.', color='purple',markersize=10, markeredgecolor = 'blue')
+ax = sns.barplot(x=x, y=y, palette='viridis')
+plt.xticks(rotation=45)
+plt.title("Evoloution of Average Freight value")
+c = 0
+for p in ax.patches:
+        x=p.get_bbox().get_points()[:,0]
+        y=p.get_bbox().get_points()[1,1]
+        ax.annotate('{:}'.format(avg_freight_value['avg_freight_value'][c]), (x.mean(), y),
+                ha='center', va='bottom') # set the alignment of the text
+        c+=1
+plt.show()
+```
+**Key Insights from Evolution of Average Freight Value**
+- From early 2017 to late 2017, the average freight value held steady at 20.0.
+- Freight costs rose from 20.0 to 24.0 in mid-2018, suggesting increased logistics expenses or inefficiencies,  before slightly dropping back to 21.0. Rising costs may lead to profit margin erosion, especially under free or flat-rate shipping and higher freight charges risk customer dissatisfaction and cart abandonment.
+- The absence of seasonal trends suggests missed dynamic pricing or optimization opportunities.
+
+```python
+state_price = df.groupby('customer_state')['price'].agg('mean').sort_values(ascending=False).reset_index()
+state_price
+```
+```python
+x = state_price['customer_state']
+y = state_price['price']
+plt.figure(figsize=(16,8))
+ax = sns.barplot(x=x, y=y, palette='viridis')
+plt.xticks(rotation=45)
+plt.title("Freight Value Distribution Across States")
+c = 0
+for p in ax.patches:
+        x=p.get_bbox().get_points()[:,0]
+        y=p.get_bbox().get_points()[1,1]
+        ax.annotate('{:}'.format(np.ceil(state_price['price'][c])), (x.mean(), y),
+                ha='center', va='bottom')
+        c+=1
+plt.show()
+```
+- PB (Paraíba) has the highest freight cost at 202.0, signaling remote access or logistics inefficiency.
+- SP (São Paulo) shows the lowest freight at 110.0, likely due to dense infrastructure and high shipment volume.
+- Northern states (e.g., AL, AC, TO) generally have higher prices, reflecting distance or weak transport networks.
+- Large cost differences across states suggest geographic disparity and uneven delivery performance.
+- Opportunity exists to optimize freight strategies in high-cost regions through warehouse placement or courier negotiations.
+
+## V. Enhance customer experience
+
+First, we need to identify the customer segmentation for better understanding. We can use a simple segmentation method such as RFM, which groups customers according to three metrics:
+- Recency: How recently did the customer place the last order?
+- Frequency: How often does the customer place orders?
+- Monetary value: How much does the customer spend on average?
+Afterward, each customer is assigned to a category according to its RFM scores. This segmentation process is particularly useful for personalized marketing or to improve customer service by addressing the specific needs of different customer groups.
+
+Since Python would be less efficient for this task compared to SQL, I will perform the analysis using SQL queries instead.
+
+The following SQL query is a bit longer so I'll break it down in 3 steps:
+1. Calculate each of the three RFM scores in three CTEs using the NTILE function, which ranks each customer from 1-5 in the given score.
+2. Assign each customer to one of 11 groups, using the method outlined in this article by [Mark Rittman](https://www.rittmananalytics.com/blog/2021/6/20/rfm-analysis-and-customer-segmentation-using-looker-dbt-and-google-bigquery).
+3. Calculate statistics for each group, so we can plot them by sales, recency and size.
+
+```sql
+-- 1. Calculate RFM scores
+WITH RecencyScore AS (
+    SELECT customer_unique_id,
+           MAX(order_purchase_timestamp) AS last_purchase,
+           NTILE(5) OVER (ORDER BY MAX(order_purchase_timestamp) DESC) AS recency
+    FROM orders
+        JOIN customers USING (customer_id)
+    WHERE order_status = 'delivered'
+    GROUP BY customer_unique_id
+),
+FrequencyScore AS (
+    SELECT customer_unique_id,
+           COUNT(order_id) AS total_orders,
+           NTILE(5) OVER (ORDER BY COUNT(order_id) DESC) AS frequency
+    FROM orders
+        JOIN customers USING (customer_id)
+    WHERE order_status = 'delivered'
+    GROUP BY customer_unique_id
+),
+MonetaryScore AS (
+    SELECT customer_unique_id,
+           SUM(price) AS total_spent,
+           NTILE(5) OVER (ORDER BY SUM(price) DESC) AS monetary
+    FROM orders
+        JOIN order_items USING (order_id)
+JOIN customers USING (customer_id)
+    WHERE order_status = 'delivered'
+    GROUP BY customer_unique_id
+),
+
+-- 2. Assign each customer to a group
+RFM AS (
+    SELECT last_purchase, total_orders, total_spent,
+        CASE
+            WHEN recency = 1 AND frequency + monetary IN (1, 2, 3, 4) THEN "Champions"
+            WHEN recency IN (4, 5) AND frequency + monetary IN (1, 2) THEN "Can't Lose Them"
+            WHEN recency IN (4, 5) AND frequency + monetary IN (3, 4, 5, 6) THEN "Hibernating"
+            WHEN recency IN (4, 5) AND frequency + monetary IN (7, 8, 9, 10) THEN "Lost"
+            WHEN recency IN (2, 3) AND frequency + monetary IN (1, 2, 3, 4) THEN "Loyal Customers"
+            WHEN recency = 3 AND frequency + monetary IN (5, 6) THEN "Needs Attention"
+            WHEN recency = 1 AND frequency + monetary IN (7, 8) THEN "Recent Users"
+            WHEN recency = 1 AND frequency + monetary IN (5, 6) OR
+                recency = 2 AND frequency + monetary IN (5, 6, 7, 8) THEN "Potentital Loyalists"
+            WHEN recency = 1 AND frequency + monetary IN (9, 10) THEN "Price Sensitive"
+            WHEN recency = 2 AND frequency + monetary IN (9, 10) THEN "Promising"
+            WHEN recency = 3 AND frequency + monetary IN (7, 8, 9, 10) THEN "About to Sleep"
+        END AS RFM_Bucket
+    FROM RecencyScore
+        JOIN FrequencyScore USING (customer_unique_id)
+        JOIN MonetaryScore USING (customer_unique_id)
+)
+
+-- 3. Calculate group statistics for plotting
+SELECT RFM_Bucket, 
+       AVG(JULIANDAY('now') - JULIANDAY(last_purchase)) AS avg_days_since_purchase, 
+       AVG(total_spent / total_orders) AS avg_sales_per_customer,
+       COUNT(*) AS customer_count
+FROM RFM
+GROUP BY RFM_Bucket
+```
+Next, I will export the data as a CSV file named rfm_df for further data visualization.
+```python
+rfm_df = pd.read_csv('rfm_df.csv')
+rfm_df
+```
+Let's visualize this. I'll plot each group using average recency on the x-axis, average sales per customer on the y-axis and circle size to represent the amount of customers in each group:
+
+```python
+plt.figure(figsize=(12, 8))
+scatter = plt.scatter(df['avg_days_since_purchase'], df['avg_sales_per_customer'],
+    s=df['customer_count']*0.55, c=sns.color_palette('Set3', len(df)))
+plt.xlabel('Average days since the last purchase', fontsize=14)
+plt.ylabel('Average sales per customer', fontsize=14)
+plt.title('RFM segmentation of customers')
+plt.grid(True)
+for i, text in enumerate(df['RFM_Bucket']):
+    plt.annotate(text, (df['avg_days_since_purchase'][i], df['avg_sales_per_customer'][i]), 
+        ha='center', va='center')
+plt.gca().invert_xaxis()
+plt.xlim(2530, 2070)
+plt.ylim(0, 380)
+plt.show()
+```
+The previous plot shows us where each customer segment falls in terms of recency and sales. For example, the 'Champions' segment on the top right has high sales and has purchased recently, while the 'Lost' segment on the opposite side has low sales and no recent purchases.
+Let's build a plot of the proportion of one-time customers vs repeat customers to gain more insight into how loyal are people who buy through Olist:
+```python
+# Calculate customer purchase frequency
+customer_orders = df.groupby('customer_unique_id')['order_id'].nunique().reset_index()
+customer_orders['customer_type'] = customer_orders['order_id'].apply(lambda x: 'repeat' if x > 1 else 'one-time')
+
+# Calculate proportions
+df['proportions'] = customer_orders['customer_type'].value_counts(normalize=True) * 100
+```
+```python
+# Calculate customer purchase frequency
+customer_orders = df.groupby('customer_unique_id')['order_id'].nunique().reset_index()
+customer_orders['customer_type'] = customer_orders['order_id'].apply(lambda x: 'repeat' if x > 1 else 'one-time')
+
+# Calculate proportions
+proportions= customer_orders['customer_type'].value_counts(normalize=True) * 100
+
+fig, ax = plt.subplots()
+ax.pie(proportions, labels = proportions.index, startangle=5,autopct='%1.2f%%')
+ax.set_title('Proportion of one-time vs repeat customers')
+fig.set_facecolor('white')
+plt.show()
+```
+As we can see most customers only place a single order through Olist. This may suggest the market behaves like a one-shot purchase environment — a key consideration for both retention efforts and product strategy.
+While rare, repeat customers likely represent a more loyal segment worth deeper investigation. Their behavior may differ significantly in terms of product selection, satisfaction, and lifetime value.
+Further segmentation could explore whether these customers:
+- Leave more positive reviews.
+- Spend more per order.
+- Experience fewer delivery issues.
+Understanding and nurturing this small, loyal group could have a disproportionately large impact on long-term business performance.
+
+
+
 
 
 
