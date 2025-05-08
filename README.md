@@ -597,23 +597,23 @@ plot_pair(
 
 **Key Takeaways from the Product Categories Deep Dive**
 
-**1. Sales Concentration**
+**🛒. Sales Concentration**
 
 Demand is heavily skewed toward essential, utility-based categories like bed_bath_table, beauty_health, and sports_leisure. In contrast, niche or poorly maintained categories like insurance_services and pc_gamer generate negligible value.
 
-**2. Customer Satisfaction ≠ Sales**
+**😊. Customer Satisfaction ≠ Sales**
 
 Categories such as books, cds_dvds_music, and fashion_children_clothing earn high ratings despite low sales. On the flip side, some mid-volume categories (e.g., office_furniture, men’s_clothing, landline_phones) suffer from consistently low feedback — a warning sign, not just a blip.
 
-**3. Delivery Time Issues**
+**⏱️. Delivery Time Issues**
 
 Slow logistics plague products like office_furniture and mattresses, taking over 2 weeks to deliver, harming satisfaction. Conversely, categories like arts_crafts, children’s_clothing, and imported_books prove fast shipping is achievable in 5–8 days.
 
-**4. Spending Behavior**
+**💳. Spending Behavior**
 
 A stark divide exists between luxury and low-cost goods. While pcs, coffee ovens, and furniture draw high average order values, categories like telephony and flowers average under ₱70 — with some expensive segments performing poorly due to slow delivery and low satisfaction.
 
-**5. Operational Black Holes**
+**🕳️. Operational Black Holes**
 
 Categories combining low volume, poor reviews, and slow shipping (e.g., insurance_services, office_furniture, home_comfort_2) are deemed non-viable. The focus should shift to fast-moving, well-reviewed essentials with efficient logistics.
 
@@ -763,6 +763,152 @@ As we saw at the start of this analysis, the orders table contains various times
 - order_estimated_delivery_date: Delivery date estimation.
 
 Each of these timestamps marks a change in the order shipping process.
+
+```python
+df['delivery_days'] = (df['order_delivered_customer_date'] - df['order_purchase_timestamp']).dt.days
+df['delivery_delay'] = (df['order_delivered_customer_date'] - df['order_estimated_delivery_date']).dt.days
+```
+```python
+df['delivery_days'].value_counts().sort_values(ascending=False).head()
+```
+```python
+plt.figure(figsize=(12,8))
+sns.boxplot(x=df['review_score'], y=df['delivery_days'], palette='Blues_r')
+plt.legend(bbox_to_anchor=(1.1, 0.88))
+```
+```python
+plt.figure(figsize=(12,8))
+sns.violinplot (x=df['review_score'], y=df['delivery_days'], palette='Blues_r')
+plt.legend( bbox_to_anchor=(1.1, 0.88))
+```
+```python
+df.groupby('review_score')['delivery_days'].median()
+```
+**Delivery time has a clear impact on customer satisfaction**
+
+- Orders with lower review scores tend to have significantly longer delivery times.
+- The median delivery duration drops consistently from 16 days (score 1) to 9 days (score 5), indicating that faster delivery strongly correlates with higher customer ratings.
+
+```python
+df['approval_time'] = df['order_approved_at'] - df['order_purchase_timestamp']
+df['waiting_time'] = df['order_delivered_carrier_date'] - df['order_approved_at']
+df['shipping_time'] = df['order_delivered_customer_date'] - df['order_delivered_carrier_date']
+df['total_time'] = df['order_delivered_customer_date'] - df['order_purchase_timestamp']
+df['estimated_time'] = df['order_estimated_delivery_date'] - df['order_purchase_timestamp']
+```
+```python
+time_columns = ['approval_time', 'waiting_time', 'shipping_time', 'total_time', 'estimated_time']
+
+for col in time_columns:
+    negatives = df[df[col] < pd.Timedelta(0)]
+    print(f'{col}: {len(negatives)} negative values')
+```
+```python
+df = df[df['waiting_time'] >= pd.Timedelta(0)]
+df = df[df['shipping_time'] >= pd.Timedelta(0)]
+```
+```python
+time_columns = ['approval_time', 'waiting_time', 'shipping_time', 'total_time', 'estimated_time']
+summary = pd.DataFrame({
+    'mean': df[time_columns].mean(),
+    'median': df[time_columns].median(),
+    'std': df[time_columns].std()
+})
+summary = summary.applymap(lambda x: pd.to_timedelta(x.round('s')))
+summary
+```
+```python
+summary = pd.DataFrame({
+    'median': [
+        df['approval_time'].median(),
+        df[df['waiting_time'].notna()]['waiting_time'].median(),
+        df[df['shipping_time'].notna()]['shipping_time'].median(),
+        df['total_time'].median(),
+        df['estimated_time'].median()
+    ],
+    'std': [
+        df['approval_time'].std(),
+        df[df['waiting_time'].notna()]['waiting_time'].std(),
+        df[df['shipping_time'].notna()]['shipping_time'].std(),
+        df['total_time'].std(),
+        df['estimated_time'].std()
+    ]
+}, index=['approval_time', 'waiting_time', 'shipping_time', 'total_time', 'estimated_time'])
+
+summary = summary.applymap(lambda x: pd.to_timedelta(x.round('s')))
+
+summary['median_hours'] = summary['median'].dt.total_seconds() / 3600
+summary['std_hours'] = summary['std'].dt.total_seconds() / 3600
+summary['label'] = summary['median_hours'].apply(lambda h: f"{h:.0f}h\n({h/24:.1f}d)")
+
+plt.figure(figsize=(10, 6))
+plt.errorbar(summary.index, summary['median_hours'], yerr=summary['std_hours'],
+             fmt='-o', color='#4C72B0', capsize=6, lw=2, markerfacecolor='white')
+
+for i, (x, y) in enumerate(zip(summary.index, summary['median_hours'])):
+    plt.text(x, y + 25, summary['label'].iloc[i], ha='right', fontsize=10, color='#333')
+
+plt.title('Median Delivery Time per Stage (with Std Dev)', fontsize=14, weight='bold')
+plt.ylabel('Time (hours)', fontsize=12)
+plt.ylim(0, 800)
+plt.grid(True)
+plt.tight_layout()
+
+for spine in ['top', 'right']:
+    plt.gca().spines[spine].set_visible(False)
+
+plt.show()
+```
+#### Summary
+
+🕒 **Approval Time**
+- True median ≈ 20 minutes (despite appearing as 0h on graph)
+- Shows high system efficiency with little manual intervention
+
+⏳ **Waiting Time**
+- Median: 45h (1.9 days)
+- High variance (±90h) → Signals inconsistent seller/warehouse response
+
+🚚 **Shipping Time**
+- Largest contributor: 170h (7.1 days) median
+- Wide spread (±190h) due to regional and courier issues
+- Top target for logistics optimization
+
+📦 **Total Delivery Time**
+- 248h (10.3 days) median
+- Reasonable, but lags behind global benchmarks
+
+📅 **Estimated Delivery Time**
+- 558h (23.3 days) – over 2x actual time
+- Implies either *Platform underpromises* or *Forecasting skews safe, lacks precision*
+- Can confuse/deter customers
+
+```python
+stacked_data = df.groupby(['delivery_status', 'review_score']).size().unstack().fillna(0)
+stacked_data = stacked_data.div(stacked_data.sum(axis=1), axis=0) * 100
+
+plt.figure(figsize=(14, 10), dpi=140)
+stacked_data.plot(kind='bar', stacked=True, cmap='viridis', width=0.8)
+
+plt.title("Review Scores Distribution by Delivery Status", fontsize=16)
+plt.xlabel("Delivery Status", fontsize=14)
+plt.ylabel("Percentage of Orders", fontsize=14)
+plt.xticks(rotation=0)
+plt.legend(title="Review Score", bbox_to_anchor=(1.05, 1), loc='upper left')
+plt.tight_layout();
+```
+```python
+early = df[df['delivery_status'] == 'early']['review_score'].dropna()
+late = df[df['delivery_status'] == 'late']['review_score'].dropna()
+stat, p = mannwhitneyu(early, late, alternative='two-sided')
+print(f"U-statistic: {stat:.2f}, p-value: {p:.10f}")
+```
+- Statistical test confirms the obvious: the difference in review scores between early and late deliveries is highly significant (Mann-Whitney U, p < 1e-10). The effect of delivery timing on customer satisfaction is not only visible — it's statistically indisputable.
+  
+### 2. Freight Value
+
+
+
 
 
 
