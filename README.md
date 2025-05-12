@@ -396,24 +396,52 @@ df.duplicated().sum()
 ```python
 df.info()
 ```
+<center>
+      <img src="png/df.info1.png"/>
+  </center>
+  
 ```python
 df.nunique()
 ```
+<center>
+      <img src="png/df.nunique.png"/>
+  </center>
+  
 ```python
 df['price'].describe()
 ```
+<center>
+      <img src="png/price.describe.png"/>
+  </center>
+  
 ```python
 df['payment_value'].describe()
 ```
+<center>
+      <img src="png/paymentvalue.describe.png"/>
+  </center>
+  
 ```python
 df['payment_type'].value_counts()
 ```
+<center>
+      <img src="png/paymenttype.describe.png"/>
+  </center>
+  
 ```python
 df['review_score'].value_counts()
 ```
+<center>
+      <img src="png/reviewscore.count.png"/>
+  </center>
+  
 ```python
 print(df['order_purchase_timestamp'].min(), df['order_purchase_timestamp'].max())
 ```
+<center>
+      <img src="png/timemaxmin.png"/>
+  </center>
+  
 ```python
 # Select relevant features for correlation analysis
 correlation_features = df[['price', 'review_score', 'delivery_time',
@@ -432,6 +460,9 @@ sns.heatmap(correlation, annot=True, cmap=custom_cmap, vmin=-1, vmax=1, fmt=".2f
 plt.title('Correlation Heatmap')
 plt.show()
 ```
+<center>
+      <img src="png/correlation.png"/>
+  </center>
 
 ## II. Analyze customer purchasing behavior
 
@@ -463,6 +494,10 @@ plt.grid(visible=True, linestyle='--', alpha=0.7)
 plt.tight_layout()
 plt.show()
 ```
+<center>
+      <img src="png/monthlytrend.png"/>
+  </center>
+  
 - From **September 2016** to around **mid-2018**, there's a clear **upward trend** in **total sales**, indicating **consistent growth** over time.
 - The **highest peak** occurs around **November 2017**, where **sales** exceed **1 million units**. This could be linked to **seasonal events** like **Black Friday** or **holiday shopping**.
 - There's a **dramatic drop** in sales in **September 2018**. Possible reason is **missing data**.
@@ -495,6 +530,10 @@ plt.grid(visible=True, linestyle='--', alpha=0.7)
 plt.tight_layout()
 plt.show()
 ```
+<center>
+      <img src="png/orderperday.png"/>
+  </center>
+  
 - There's a **large spike** of **orders** around **Christmas**, specifically on the **24th of December**.
 - The **number of orders** also seems to be **increasing steadily over time** as Olist's business grows. Also notice how there's very **few data** at the **start and end** of the **timespan** covered by the dataset, so I'll exclude these dates from some of my next queries.
 
@@ -531,6 +570,10 @@ pivot_df = pivot_df.reindex(ordered_days)
 # Display the result table
 print(pivot_df)
 ```
+<center>
+      <img src="png/heatmapdatamatrix.png"/>
+  </center>
+  
 With the data matrix ready, we can use seaborn to create the heatmap:
 ```python
 fig, ax = plt.subplots(figsize=(14, 6))
@@ -546,16 +589,27 @@ plt.xlabel("Hour of the day")
 plt.ylabel("")
 plt.show()
 ```
+<center>
+      <img src="png/heatmap.png"/>
+  </center>
+  
 - **Most orders** were placed during the **weekdays** from **10 AM to 4 PM** with a **small dip** in sales around **12 PM** due to **lunchtime**.
 - Customers also order through Olist in the **evenings** around **9 PM** from **Sunday to Thursday**. **Saturday** is the day with the **fewest orders**, although it's still quite busy.
 - The **least busy** time of the day is from **3 to 5 AM**, although there are still a few orders during that time.
 
 ### 4. Catogories analysis
+
 Let's examine Olist's product categories by volume of sales. 
+
 ```python
 df['product_category_name_english'].nunique()
 ```
+<center>
+      <img src="png/num.categories.png"/>
+  </center>
+  
 There are 71 unique product categories. We can use a treemap to plot the relative sales of each category using areas. Since it will be challenging to visualize 71 categories, I'll choose the top 18 and group the rest into 'Other categories'. To start, let's get the total sales for each category. 
+
 ```python
 df = df[df['order_status'] == 'delivered']
 
@@ -577,8 +631,12 @@ category_sales = category_sales.sort_values('rank').reset_index(drop=True)
 category_sales = category_sales.rename(columns={'product_category_name_english': 'category'})
 print(category_sales)
 ```
-
+<center>
+      <img src="png/saleseachcategories.png"/>
+  </center>
+  
 We'll use the rank column to take the first 18th categories by sales and aggregate the rest as 'Other categories'
+
 ```python
 # Separate top 18 categories
 top_18 = category_sales[category_sales['rank'] <= 18]
@@ -598,7 +656,12 @@ other_row = pd.DataFrame([{
 df_categories = pd.concat([top_18, other_row], ignore_index=True)
 print(df_categories)
 ```
+<center>
+      <img src="png/top18salescategories.png"/>
+  </center>
+  
 Let's visualize this data using a treemap built with squarify:
+
 ```python
 import matplotlib.cm as cm
 plt.figure(figsize=(15, 8))
@@ -609,13 +672,22 @@ squarify.plot(sizes=df_categories['sales'], label=df_categories['product_categor
 plt.axis('off')
 plt.show()
 ```
+<center>
+      <img src="png/treemap.png"/>
+  </center>
+  
 - **Top-performing categories** include **bed_bath_table, watches_gifts, and health_beauty**, which occupy the largest sections of the treemap, signaling their dominance in sales volume.
 - A significant portion of sales is grouped under "Other categories", highlighting a long tail of less individually impactful but collectively substantial segments.
 
 We can gain more insight into the types of products these categories contain by visualizing the **total orders, review score, delivery time and median payment by category** using a set of bar charts.
+
 ```python
 delivered = df[df['order_status'] == 'delivered'].copy()
 ```
+<center>
+      <img src="png/delivered.png"/>
+  </center>
+  
 ```python
 palette = sns.color_palette("inferno", 20)
 top_palette = palette[-10:]
@@ -671,6 +743,10 @@ plot_pair(
     ylabel='Product Category'
 )
 ```
+<center>
+      <img src="png/10sales.png"/>
+  </center>
+  
 ```python
 average_rating_top = delivered.groupby('product_category_name_english_x')['review_score'].mean().round(3).nlargest(10)
 average_rating_tail = delivered.groupby('product_category_name_english_x')['review_score'].mean().round(3).nsmallest(10)
@@ -686,6 +762,10 @@ plot_pair(
     xlim_bot=(0, 5)
 )
 ```
+<center>
+      <img src="png/10rating.png"/>
+  </center>
+  
 ```python
 mean_deliv_time_top = delivered.groupby('product_category_name_english_x')['delivery_days'].mean().round().fillna(0).astype('int64').nlargest(10)
 mean_deliv_time_tail = delivered.groupby('product_category_name_english_x')['delivery_days'].mean().round().fillna(0).astype('int64').nsmallest(10)
@@ -700,6 +780,10 @@ plot_pair(
     xlim_bot=(0,20)
 )
 ```
+<center>
+      <img src="png/10delivtime.png"/>
+  </center>
+  
 ```python
 mean_payment_top = delivered.groupby('product_category_name_english_x')['payment_value'].median().round().astype('int64').nlargest(10)
 mean_payment_tail = delivered.groupby('product_category_name_english_x')['payment_value'].median().round().astype('int64').nsmallest(10)
@@ -714,6 +798,10 @@ plot_pair(
     xlim_bot=(0, 800)
 )
 ```
+<center>
+      <img src="png/10valuecategories.png"/>
+  </center>
+  
 #### Summary
 
 **Key Takeaways from the Product Categories Deep Dive**
@@ -743,7 +831,10 @@ Categories combining low volume, poor reviews, and slow shipping (e.g., insuranc
 ```python
 df['payment_type'].nunique()
 ```
-
+<center>
+      <img src="png/payment.unique.png"/>
+  </center>
+  
 Boleto is a widely used payment method in Latin America, particularly in Brazil. Introduced in 1993, it was designed to facilitate cash payments. It functions similarly to a proforma invoice and can be paid at various locations, including ATMs, bank branches, internet banking, post offices, lottery agents, and some supermarkets, as long as it is within the due date.
 
 For better understanding, you could compare Boleto to systems like direct debit or bank transfer in many other countries, where payments are made outside the traditional credit card system, often using a pre-issued invoice or bill. A more specific comparison might be with BillPay systems in the U.S. or SEPA Direct Debit in Europe, where payments are processed through a network of banks, but Boleto is more widely accessible due to its integration with multiple payment points.
@@ -753,7 +844,10 @@ payment_type_share = df['payment_type'].value_counts(normalize=True).nlargest(4)
 payment_type_share = (payment_type_share*100).round(2)
 payment_type_share
 ```
-
+<center>
+      <img src="png/payment.share.png"/>
+  </center>
+  
 ```python
 # Group by payment_type and aggregate
 agg_df = df.groupby('payment_type').agg(total_revenue=('payment_value', 'sum'),payment_count=('payment_value', 'count')).reset_index()
@@ -780,12 +874,20 @@ fig.update_layout(title=dict(text='<b>Total revenue and Payment count by Payment
 
 fig.show()
 ```
+<center>
+      <img src="png/payment.vs.revenue.png"/>
+  </center>
+
 - **Credit cards dominate** the landscape, accounting for a **striking 73.67%** of all **payments** and achieve the **highest total revenue** **(≈ 15M+)**. The **second most popular method, boleto bancário**, trails far behind at **19.46%** and generates **moderate revenue (≈ 4M)**, followed by **vouchers (5.43%)** and **debit cards (1.43%)** with **low revenue (less than 1M each)**. This **preference** speaks not only to **access** but also to the **flexibility** Brazilian **consumers expect**.
 
 ```python
 installment_ratio = (df['payment_installments'] > 1).mean() * 100
 print(f'The proportion of installment orders: {installment_ratio:.2f}%')
 ```
+<center>
+      <img src="png/installment.rate.png"/>
+  </center>
+
 - **Installments** are the **norm** — not the exception. Over **half of all credit card transactions (50.10%)** are paid in **installments**, effectively blurring the line between **affordability** and **deferred spending**.
   
 ```python
@@ -805,6 +907,10 @@ for bar in bars:
 plt.tight_layout()
 plt.show()
 ```
+<center>
+      <img src="png/installment.categories.png"/>
+  </center>
+  
 - This pattern is especially pronounced in **high-ticket** or **aspirational categories** like **PCs (75% installment rate), kitchenware, mattresses**, and **home appliances**. Even in **fashion** and **gift** categories, **installment** usage often **exceeds 60%**.
 
 #### Summary
@@ -814,6 +920,7 @@ In short, **Brazil’s payment structure** is heavily **credit-driven**, with st
 
 Our database also includes an order_reviews table. Users can score an order from 1 to 5 and write a comment on the order. 
 Let's count how many orders there are for each review score:
+
 ```python
 plt.figure(figsize=(8,5), dpi=120)
 sns.countplot(x=df['review_score'], palette='Blues_r')
@@ -821,6 +928,10 @@ plt.title('Distribution of scores', fontsize=17, fontweight='bold', pad=7);
 plt.ylabel('Frequency')
 plt.xlabel('Review Score')
 ```
+<center>
+      <img src="png/reviewscore.png"/>
+  </center>
+  
 We can see that most review scores are very positive, but there's also a fair number of unsatisfied customers. 
 
 ```python
@@ -838,6 +949,10 @@ plt.xlabel("Review Score")
 plt.ylabel("Comment Share (%)")
 plt.ylim(0, 100);
 ```
+<center>
+      <img src="png/commentshare.png"/>
+  </center>
+  
 - Missing review comments reveals that negative reviews (1-2 stars) are more likely to contain written feedback, while higher ratings (4-5 stars) often lack text comments. This suggests that dissatisfied customers tend to provide detailed feedback, whereas satisfied customers typically leave only a rating.
 
 What's the cause? To answer this question, let's create a word cloud of the comments with a score of 1 or 2. 
@@ -857,6 +972,10 @@ plt.imshow(wordcloud)
 plt.axis("off")
 plt.show()
 ```
+<center>
+      <img src="png/wordcloud.png"/>
+  </center>
+  
 Word cloud analysis of customer reviews highlights key themes related to product delivery, timing, and quality. The most frequently used words (translated from Portuguese) include:
 
 - produto → product
@@ -892,19 +1011,35 @@ df['delivery_delay'] = (df['order_delivered_customer_date'] - df['order_estimate
 ```python
 df['delivery_days'].value_counts().sort_values(ascending=False).head()
 ```
+<center>
+      <img src="png/deliv.meanday.png"/>
+  </center>
+  
 ```python
 plt.figure(figsize=(12,8))
 sns.boxplot(x=df['review_score'], y=df['delivery_days'], palette='Blues_r')
 plt.legend(bbox_to_anchor=(1.1, 0.88))
 ```
+<center>
+      <img src="png/review.vs.delivery.boxplot.png"/>
+  </center>
+
 ```python
 plt.figure(figsize=(12,8))
 sns.violinplot (x=df['review_score'], y=df['delivery_days'], palette='Blues_r')
 plt.legend( bbox_to_anchor=(1.1, 0.88))
 ```
+<center>
+      <img src="png/review.vs.delivery.violinplot.png"/>
+  </center>
+  
 ```python
 df.groupby('review_score')['delivery_days'].median()
 ```
+<center>
+      <img src="png/review.vs.delivery.table.png"/>
+  </center>
+  
 **Delivery time has a clear impact on customer satisfaction**
 
 - Orders with lower review scores tend to have significantly longer delivery times.
@@ -924,6 +1059,10 @@ for col in time_columns:
     negatives = df[df[col] < pd.Timedelta(0)]
     print(f'{col}: {len(negatives)} negative values')
 ```
+<center>
+      <img src="png/time.negative.png"/>
+  </center>
+  
 ```python
 df = df[df['waiting_time'] >= pd.Timedelta(0)]
 df = df[df['shipping_time'] >= pd.Timedelta(0)]
@@ -938,6 +1077,10 @@ summary = pd.DataFrame({
 summary = summary.applymap(lambda x: pd.to_timedelta(x.round('s')))
 summary
 ```
+<center>
+      <img src="png/time.summary.png"/>
+  </center>
+  
 ```python
 summary = pd.DataFrame({
     'median': [
@@ -980,6 +1123,10 @@ for spine in ['top', 'right']:
 
 plt.show()
 ```
+<center>
+      <img src="png/time.spine.png"/>
+  </center>
+  
 **Delivery Time Breakdown**
 🕒 **Approval Time**
 - True median ≈ 20 minutes (despite appearing as 0h on graph)
@@ -1017,12 +1164,20 @@ plt.xticks(rotation=0)
 plt.legend(title="Review Score", bbox_to_anchor=(1.05, 1), loc='upper left')
 plt.tight_layout();
 ```
+<center>
+      <img src="png/score.deliv.status.stacked.png"/>
+  </center>
+  
 ```python
 early = df[df['delivery_status'] == 'early']['review_score'].dropna()
 late = df[df['delivery_status'] == 'late']['review_score'].dropna()
 stat, p = mannwhitneyu(early, late, alternative='two-sided')
 print(f"U-statistic: {stat:.2f}, p-value: {p:.10f}")
 ```
+<center>
+      <img src="png/u-statistic.png"/>
+  </center>
+  
 - Statistical test confirms the obvious: the difference in review scores between early and late deliveries is highly significant (Mann-Whitney U, p < 1e-10). The effect of delivery timing on customer satisfaction is not only visible — it's statistically indisputable.
 
 ```python
@@ -1053,7 +1208,10 @@ plt.xlabel("Median Delivery Delay (days)")
 plt.ylabel("Customer State")
 plt.tight_layout();
 ```
-
+<center>
+      <img src="png/10states.ordercount.png"/>
+  </center>
+  
 - Across all states, deliveries tend to arrive ahead of the estimated date.
 - Among the 10 states with the highest order volume, the median delivery delay is negative — meaning early delivery is the norm. The fastest deliveries are seen in São Paulo (SP), Minas Gerais (MG), and Rio de Janeiro (RJ), all showing median delivery times 2–3 days earlier than expected.
 - This suggests that the estimated delivery dates may be overly conservative, and there may be room for more accurate (and competitive) estimations.
@@ -1064,6 +1222,10 @@ plt.tight_layout();
 avg_freight_value = df.groupby(df['order_purchase_timestamp'].dt.to_period('M'))['freight_value'].agg('sum').reset_index()
 avg_freight_value
 ```
+<center>
+      <img src="png/avg.freight.value.png"/>
+  </center>
+  
 ```python
 avg_fr_val = []
 
@@ -1076,6 +1238,10 @@ for i in range(len(avg_freight_value)):
 avg_freight_value['avg_freight_value'] = avg_fr_val
 avg_freight_value
 ```
+<center>
+      <img src="png/avg.freight.value.detail.png"/>
+  </center>
+
 ```python
 x = avg_freight_value['order_purchase_timestamp'].astype(str)
 y = avg_freight_value['avg_freight_value']
@@ -1093,6 +1259,10 @@ for p in ax.patches:
         c+=1
 plt.show()
 ```
+<center>
+      <img src="png/avg.freight.value.timestamp.png"/>
+  </center>
+
 **Key Insights from Evolution of Average Freight Value**
 - From early 2017 to late 2017, the average freight value held steady at 20.0.
 - Freight costs rose from 20.0 to 24.0 in mid-2018, suggesting increased logistics expenses or inefficiencies,  before slightly dropping back to 21.0. Rising costs may lead to profit margin erosion, especially under free or flat-rate shipping and higher freight charges risk customer dissatisfaction and cart abandonment.
@@ -1102,6 +1272,10 @@ plt.show()
 state_price = df.groupby('customer_state')['price'].agg('mean').sort_values(ascending=False).reset_index()
 state_price
 ```
+<center>
+      <img src="png/state.avg.freight.value.png"/>
+  </center>
+  
 ```python
 x = state_price['customer_state']
 y = state_price['price']
@@ -1118,6 +1292,10 @@ for p in ax.patches:
         c+=1
 plt.show()
 ```
+<center>
+      <img src="png/state.avg.freight.chart.png"/>
+  </center>
+  
 - PB (Paraíba) has the highest freight cost at 202.0, signaling remote access or logistics inefficiency.
 - SP (São Paulo) shows the lowest freight at 110.0, likely due to dense infrastructure and high shipment volume.
 - Northern states (e.g., AL, AC, TO) generally have higher prices, reflecting distance or weak transport networks.
@@ -1205,6 +1383,10 @@ Next, I will export the data as a CSV file named rfm_df for further data visuali
 rfm_df = pd.read_csv('rfm_df.csv')
 rfm_df
 ```
+<center>
+      <img src="png/rfm.png"/>
+  </center>
+  
 Let's visualize this. I'll plot each group using average recency on the x-axis, average sales per customer on the y-axis and circle size to represent the amount of customers in each group:
 
 ```python
@@ -1223,8 +1405,13 @@ plt.xlim(2530, 2070)
 plt.ylim(0, 380)
 plt.show()
 ```
+<center>
+      <img src="png/rfm.visual.png"/>
+  </center>
+  
 The previous plot shows us where each customer segment falls in terms of recency and sales. For example, the 'Champions' segment on the top right has high sales and has purchased recently, while the 'Lost' segment on the opposite side has low sales and no recent purchases.
 Let's build a plot of the proportion of one-time customers vs repeat customers to gain more insight into how loyal are people who buy through Olist:
+
 ```python
 # Calculate customer purchase frequency
 customer_orders = df.groupby('customer_unique_id')['order_id'].nunique().reset_index()
@@ -1232,7 +1419,7 @@ customer_orders['customer_type'] = customer_orders['order_id'].apply(lambda x: '
 
 # Calculate proportions
 df['proportions'] = customer_orders['customer_type'].value_counts(normalize=True) * 100
-```
+```  
 ```python
 # Calculate customer purchase frequency
 customer_orders = df.groupby('customer_unique_id')['order_id'].nunique().reset_index()
@@ -1247,6 +1434,10 @@ ax.set_title('Proportion of one-time vs repeat customers')
 fig.set_facecolor('white')
 plt.show()
 ```
+<center>
+      <img src="png/onetime.png"/>
+  </center>
+  
 As we can see most customers only place a single order through Olist. This may suggest the market behaves like a one-shot purchase environment — a key consideration for both retention efforts and product strategy.
 While rare, repeat customers likely represent a more loyal segment worth deeper investigation. Their behavior may differ significantly in terms of product selection, satisfaction, and lifetime value.
 Further segmentation could explore whether these customers:
