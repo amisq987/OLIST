@@ -135,7 +135,7 @@ for name, summary in missing_data_summaries.items():
     print("\n")
 ```
 <center>
-      <img src="png/50%missing.png"/>
+      <img src="png/50.missing.png"/>
   </center>
   
 ```python
@@ -171,14 +171,14 @@ for col in date_cols:
 orders[orders["order_approved_at"].isnull()]["order_status"].value_counts()
 ```
 <center>
-      <img src="png/order_approved_at.png"/>
+      <img src="png/order.approved.at.png"/>
   </center>
   
 ```python
 orders[orders["order_approved_at"].isnull() & (orders["order_status"] == "delivered")]["order_id"].values
 ```
 <center>
-      <img src="png/order_approved_at.order_id.png"/>
+      <img src="png/order.approved.at.order.id.png"/>
   </center>
   
 ```python
@@ -198,7 +198,7 @@ payments[payments["order_id"].isin(['e04abd8149ef81b95221e88f6ed9ab6a',
        '2babbb4b15e6d2dfe95e2de765c97bce'])]
 ```
 <center>
-      <img src="png/order_approved_at.order_id.details.png"/>
+      <img src="png/order.approved.at.order.id.details.png"/>
   </center>
   
 ```python
@@ -214,7 +214,7 @@ orders['order_approved_at'] = orders['order_approved_at'].fillna(
 orders[orders["order_approved_at"].isnull()]["order_status"].value_counts()
 ```
 <center>
-      <img src="png/order_approved_at.isnull.again.png"/>
+      <img src="png/order.approved.at.isnull.again.png"/>
   </center>
 
 - Column **order_delivered_carrier_date**
@@ -223,14 +223,14 @@ orders[orders["order_approved_at"].isnull()]["order_status"].value_counts()
 orders[orders["order_delivered_carrier_date"].isnull()]["order_status"].value_counts()
 ```
 <center>
-      <img src="png/order_delivered_customer_date.isnull.png"/>
+      <img src="png/order.delivered.carrier.date.isnull.png"/>
   </center>
   
 ```python
 orders[(orders["order_delivered_carrier_date"].isnull()) & (orders["order_status"] == "delivered")]
 ```
 <center>
-      <img src="png/order_delivered_carrier_date.order_id.png"/>
+      <img src="png/order.delivered.carrier.date.order.id.png"/>
   </center>
   
 ```python
@@ -247,14 +247,14 @@ orders['order_delivered_carrier_date'].fillna(pd.to_datetime(orders['order_appro
 orders[orders["order_delivered_customer_date"].isnull()]["order_status"].value_counts()
 ```
 <center>
-      <img src="png/order_delivered_customer_date.isnull.png"/>
+      <img src="png/order.delivered.customer.date.isnull.png"/>
   </center>
   
 ```python
 orders[(orders["order_delivered_customer_date"].isnull()) & (orders["order_status"] == "delivered")]
 ```
 <center>
-      <img src="png/order_delivered_customer_date.order_status.details"/>
+      <img src="png/order.delivered.customer.date.order.status.details"/>
   </center>
   
 ```python
@@ -267,7 +267,7 @@ orders['order_delivered_customer_date'].fillna(pd.to_datetime(orders['order_deli
 orders.isnull().sum()
 ```
 <center>
-      <img src="png/order_delivered_customer_date.isnull.again"/>
+      <img src="png/order.delivered.customer.date.isnull.again"/>
   </center>
 
 2. Handle missing data in **PRODUCTS** table:
@@ -309,7 +309,7 @@ geolocation = geolocation.drop_duplicates()
 geolocation.duplicated().sum()
 ```
 <center>
-      <img src="png/geolocation.drop_duplicated"/>
+      <img src="png/geolocation.drop.duplicated"/>
   </center>
 
 ## Merge Dataframe
@@ -325,7 +325,7 @@ df = df.merge(categories, on='product_category_name', how='inner')
 df.info()
 ```
 <center>
-      <img src="png/df.info()"/>
+      <img src="png/df.info"/>
   </center>
   
 ```python
