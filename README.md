@@ -97,7 +97,7 @@ for name, summary in missing_data_summaries.items():
     print("\n")
 ```
 <center>
-      <img src="png/50% missing.png"/>
+      <img src="png/50%missing.png"/>
   </center>
   
 ```python
