@@ -1,9 +1,9 @@
 # OLIST
 
-# SCOPE
+# 🔍 SCOPE
 You’ve just joined Olist as a Junior Data Analyst on the Sales Optimization team. Olist is a major e-commerce platform in Brazil, known for connecting businesses with customers online. To stay ahead in a competitive market, Olist needs to enhance customer experience, optimize seller performance, improve logistics. You’ve been given historical orders, customers, products, sellers and geolocation data. Your goal is to uncover data-driven insights that support these key focus areas—such as analyzing buyer behavior, identifying top-performing products, evaluating seller KPIs, optimizing inventory. But first,Olist executives must approve your recommendations, so they must be backed up with compeling data insights and professional data visualizations. 
 
-## Project Objective
+## 📌 Project Objective
 The project aims to ensure the objectives of the business analysis project for sales management—such as optimizing the sales process, increasing revenue and profit, gaining deeper customer insights, enhancing advertising effectiveness, improving user experience, optimizing inventory management, and forecasting market trends. Key objectives include:
 
 - **Identify potential issues**: Propose improvements that enhance performance and reduce operational costs.
@@ -11,11 +11,16 @@ The project aims to ensure the objectives of the business analysis project for s
 - **Evaluate sales performance**: Assess overall revenue, revenue by individual products or product groups, and revenue over time.
 - **Enhance customer experience**: Analyzing customer service metrics such as response time, satisfaction rate, and the number of complaints.
 
-## About the company
+## 🛠 Technologies Used  
+- Python (Pandas, NumPy, Matplotlib, Seaborn)    
+- SQL 
+- Jupyter Notebook / Google Colab 
+
+## 🏢 About the company
 OLIST is a prominent e-commerce platform in Brazil, offering solutions that support businesses in selling online and managing their e-commerce operations. As an integrated multi-channel platform, OLIST enables businesses to manage and sell products across multiple e-commerce marketplaces simultaneously. This includes major platforms in Brazil such as Mercado Livre, Americanas, and others, helping businesses expand their customer reach.
 Moreover, the platform facilitates product listing and inventory management by allowing users to easily upload and manage products across different sales channels from a single interface. OLIST also provides tools to synchronize product information and track inventory in real time.
 
-## Dataset
+## 📂 Dataset
 
 - Source: [Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
 
@@ -464,7 +469,7 @@ plt.show()
       <img src="png/correlation.png"/>
   </center>
 
-## II. Analyze customer purchasing behavior
+## II. Evaluate sales performance and Analyze customer purchasing behavior
 
 ### 1. Monthly sales trend
 ```python
@@ -597,7 +602,165 @@ plt.show()
 - Customers also order through Olist in the **evenings** around **9 PM** from **Sunday to Thursday**. **Saturday** is the day with the **fewest orders**, although it's still quite busy.
 - The **least busy** time of the day is from **3 to 5 AM**, although there are still a few orders during that time.
 
-### 4. Catogories analysis
+### 3. Order prices
+
+What's the average value of an order? Does Olist handle transactions of items of really low or really high value? 
+Let's answer our first question then: What's the average order price, considering both the cost of products and shipping? To start, let's find the orders with the lowest and the highest costs:
+```python
+df['order_price'] = df['price'] + df['freight_value']
+
+# Group by order_id and sum order_price
+order_price_df = df.groupby('order_id')['order_price'].sum().reset_index()
+
+# Aggregate min, avg (rounded), and max
+min_order_price = order_price_df['order_price'].min()
+avg_order_price = round(order_price_df['order_price'].mean(), 2)
+max_order_price = order_price_df['order_price'].max()
+
+# Display results
+print("Min Order Price:", min_order_price)
+print("Avg Order Price:", avg_order_price)
+print("Max Order Price:", max_order_price)
+```
+<center>
+      <img src="png/orderprice.minmax.png"/>
+  </center>
+  
+The average order price is 160.58 BRL, which is around the cost of a pair of sports shoes in 2017 in Brazil. As we can see, the most expensive order is 13664.08, almost 100 times the average, meaning we probably have a right-tailed distribution, where most of the orders have low cost but there are orders with a very high cost. 
+Let's see the variation in prices, this time separating product cost and shipping cost. To start, let's aggregate the product cost and shipping cost for each order:
+
+```python
+delivered_df = df[df['order_status'] == 'delivered']
+
+#Group by 'order_id' and sum 'price' and 'freight_value'
+summary_df = delivered_df.groupby('order_id').agg(
+    product_cost=('price', 'sum'),
+    shipping_cost=('freight_value', 'sum')
+).reset_index()
+
+# Display result
+print(summary_df)
+```
+<center>
+      <img src="png/orderprice.details.png"/>
+  </center>
+  
+Let's plot a histogram of each cost. Since the cost can take a huge range of values but most orders have a low cost, I'll limit each plot's x-axes to 500 reals and 80 reals respectively to highlight the distribution of the most common values:
+```python
+plt.figure(figsize=(15, 6))
+# Histogram for total product cost
+plt.subplot(1, 2, 1)
+plt.hist(summary_df['product_cost'], bins=1000, color='#skyblue')
+plt.title('Product cost for orders < R$500')
+plt.xlabel('Product cost (Brazilian reals)')
+plt.ylabel('Frequency')
+plt.xlim([0, 500])
+# Histogram for total shipping cost
+plt.subplot(1, 2, 2)
+plt.hist(summary_df['shipping_cost'], bins=800, color='#springgreen')
+plt.title('Shipping cost for orders < R$80')
+plt.xlabel('Product cost (Brazilian reals)')
+plt.xlim([0, 80])
+plt.show()
+```
+<center>
+      <img src="png/histogram.png"/>
+  </center>
+  
+- The value of products in an order can vary wildly and take from very low to very high values, although most orders contain products with a total cost under 200 reals.
+- Shipping cost is usually between 7-20 reals, and rarely below that, but it can also take a wide range of much higher values.
+
+### 4. Payment behavior analysis
+
+```python
+df['payment_type'].nunique()
+```
+<center>
+      <img src="png/payment.unique.png"/>
+  </center>
+  
+Boleto is a widely used payment method in Latin America, particularly in Brazil. Introduced in 1993, it was designed to facilitate cash payments. It functions similarly to a proforma invoice and can be paid at various locations, including ATMs, bank branches, internet banking, post offices, lottery agents, and some supermarkets, as long as it is within the due date.
+
+For better understanding, you could compare Boleto to systems like direct debit or bank transfer in many other countries, where payments are made outside the traditional credit card system, often using a pre-issued invoice or bill. A more specific comparison might be with BillPay systems in the U.S. or SEPA Direct Debit in Europe, where payments are processed through a network of banks, but Boleto is more widely accessible due to its integration with multiple payment points.
+
+```python
+payment_type_share = df['payment_type'].value_counts(normalize=True).nlargest(4)
+payment_type_share = (payment_type_share*100).round(2)
+payment_type_share
+```
+<center>
+      <img src="png/payment.share.png"/>
+  </center>
+  
+```python
+# Group by payment_type and aggregate
+agg_df = df.groupby('payment_type').agg(total_revenue=('payment_value', 'sum'),payment_count=('payment_value', 'count')).reset_index()
+
+# Sort by total_revenue
+agg_df = agg_df.sort_values(by='total_revenue')
+
+# Create figure with bar and line traces
+fig = go.Figure()
+
+# Bar chart for total_revenue
+fig.add_trace(go.Bar(x=agg_df['payment_type'],y=agg_df['total_revenue'],name='Total revenue',marker_color='darkblue'))
+
+# Line chart for payment_count
+fig.add_trace(go.Scatter(x=agg_df['payment_type'],y=agg_df['payment_count'],name='Payment count',yaxis='y2',mode='lines+markers',marker=dict(color='dodgerblue', size=8),line=dict(width=3)))
+
+# Layout with dual y-axes
+fig.update_layout(title=dict(text='<b>Total revenue and Payment count by Payment type</b>',x=0.5,xanchor='center'),
+    xaxis=dict(title='Payment type', showgrid=False),
+    yaxis=dict(title='Total revenue', showgrid=False),
+    yaxis2=dict(title='Payment count',overlaying='y',side='right'),
+    legend=dict(x=0.5, xanchor='center', orientation='h'),
+    bargap=0.3,width = 900, height  =700)
+
+fig.show()
+```
+<center>
+      <img src="png/payment.vs.revenue.png"/>
+  </center>
+
+- **Credit cards dominate** the landscape, accounting for a **striking 73.67%** of all **payments** and achieve the **highest total revenue** **(≈ 15M+)**. The **second most popular method, boleto bancário**, trails far behind at **19.46%** and generates **moderate revenue (≈ 4M)**, followed by **vouchers (5.43%)** and **debit cards (1.43%)** with **low revenue (less than 1M each)**. This **preference** speaks not only to **access** but also to the **flexibility** Brazilian **consumers expect**.
+
+```python
+installment_ratio = (df['payment_installments'] > 1).mean() * 100
+print(f'The proportion of installment orders: {installment_ratio:.2f}%')
+```
+<center>
+      <img src="png/installment.rate.png"/>
+  </center>
+
+- **Installments** are the **norm** — not the exception. Over **half of all credit card transactions (50.10%)** are paid in **installments**, effectively blurring the line between **affordability** and **deferred spending**.
+  
+```python
+installment_by_category = df.groupby('product_category_name_english')['payment_installments'].apply(lambda x: (x > 1).mean()).nlargest(10)
+installment_top_categories = (installment_by_category*100).round()
+plt.figure(figsize=(12, 6))
+bars = plt.barh(installment_top_categories['product_category_name_english'], installment_top_categories['payment_installments'], color='skyblue')
+plt.xlabel('Percentage of Installment Payments (%)', fontsize=12)
+plt.ylabel('Product Category', fontsize=12)
+plt.title('Top 10 Categories by Installment Usage (%)', fontsize=14, pad=20)
+plt.xlim(0, 100)
+for bar in bars:
+    width = bar.get_width()
+    plt.text(width - 5, bar.get_y() + bar.get_height()/2,
+             f'{width}%',
+             ha='right', va='center', color='white', fontweight='bold')
+plt.tight_layout()
+plt.show()
+```
+<center>
+      <img src="png/installment.categories.png"/>
+  </center>
+  
+- This pattern is especially pronounced in **high-ticket** or **aspirational categories** like **PCs (75% installment rate), kitchenware, mattresses**, and **home appliances**. Even in **fashion** and **gift** categories, **installment** usage often **exceeds 60%**.
+
+#### Summary
+In short, **Brazil’s payment structure** is heavily **credit-driven**, with strong reliance on **installment plans** for both **essentials and lifestyle goods**. **Merchants** and **platforms** that **accommodate** — or **incentivize** — this behavior are better positioned to drive **conversion** and **basket size**. Conversely, any **limitations** on **credit usage** or **installment options** could act as a major **friction point** in the **purchase journey**.
+
+### 5. Catogories analysis
 
 Let's examine Olist's product categories by volume of sales. 
 
@@ -826,95 +989,6 @@ A stark divide exists between luxury and low-cost goods. While pcs, coffee ovens
 
 Categories combining low volume, poor reviews, and slow shipping (e.g., insurance_services, office_furniture, home_comfort_2) are deemed non-viable. The focus should shift to fast-moving, well-reviewed essentials with efficient logistics.
 
-### 5. Payment behavior analysis
-
-```python
-df['payment_type'].nunique()
-```
-<center>
-      <img src="png/payment.unique.png"/>
-  </center>
-  
-Boleto is a widely used payment method in Latin America, particularly in Brazil. Introduced in 1993, it was designed to facilitate cash payments. It functions similarly to a proforma invoice and can be paid at various locations, including ATMs, bank branches, internet banking, post offices, lottery agents, and some supermarkets, as long as it is within the due date.
-
-For better understanding, you could compare Boleto to systems like direct debit or bank transfer in many other countries, where payments are made outside the traditional credit card system, often using a pre-issued invoice or bill. A more specific comparison might be with BillPay systems in the U.S. or SEPA Direct Debit in Europe, where payments are processed through a network of banks, but Boleto is more widely accessible due to its integration with multiple payment points.
-
-```python
-payment_type_share = df['payment_type'].value_counts(normalize=True).nlargest(4)
-payment_type_share = (payment_type_share*100).round(2)
-payment_type_share
-```
-<center>
-      <img src="png/payment.share.png"/>
-  </center>
-  
-```python
-# Group by payment_type and aggregate
-agg_df = df.groupby('payment_type').agg(total_revenue=('payment_value', 'sum'),payment_count=('payment_value', 'count')).reset_index()
-
-# Sort by total_revenue
-agg_df = agg_df.sort_values(by='total_revenue')
-
-# Create figure with bar and line traces
-fig = go.Figure()
-
-# Bar chart for total_revenue
-fig.add_trace(go.Bar(x=agg_df['payment_type'],y=agg_df['total_revenue'],name='Total revenue',marker_color='darkblue'))
-
-# Line chart for payment_count
-fig.add_trace(go.Scatter(x=agg_df['payment_type'],y=agg_df['payment_count'],name='Payment count',yaxis='y2',mode='lines+markers',marker=dict(color='dodgerblue', size=8),line=dict(width=3)))
-
-# Layout with dual y-axes
-fig.update_layout(title=dict(text='<b>Total revenue and Payment count by Payment type</b>',x=0.5,xanchor='center'),
-    xaxis=dict(title='Payment type', showgrid=False),
-    yaxis=dict(title='Total revenue', showgrid=False),
-    yaxis2=dict(title='Payment count',overlaying='y',side='right'),
-    legend=dict(x=0.5, xanchor='center', orientation='h'),
-    bargap=0.3,width = 900, height  =700)
-
-fig.show()
-```
-<center>
-      <img src="png/payment.vs.revenue.png"/>
-  </center>
-
-- **Credit cards dominate** the landscape, accounting for a **striking 73.67%** of all **payments** and achieve the **highest total revenue** **(≈ 15M+)**. The **second most popular method, boleto bancário**, trails far behind at **19.46%** and generates **moderate revenue (≈ 4M)**, followed by **vouchers (5.43%)** and **debit cards (1.43%)** with **low revenue (less than 1M each)**. This **preference** speaks not only to **access** but also to the **flexibility** Brazilian **consumers expect**.
-
-```python
-installment_ratio = (df['payment_installments'] > 1).mean() * 100
-print(f'The proportion of installment orders: {installment_ratio:.2f}%')
-```
-<center>
-      <img src="png/installment.rate.png"/>
-  </center>
-
-- **Installments** are the **norm** — not the exception. Over **half of all credit card transactions (50.10%)** are paid in **installments**, effectively blurring the line between **affordability** and **deferred spending**.
-  
-```python
-installment_by_category = df.groupby('product_category_name_english')['payment_installments'].apply(lambda x: (x > 1).mean()).nlargest(10)
-installment_top_categories = (installment_by_category*100).round()
-plt.figure(figsize=(12, 6))
-bars = plt.barh(installment_top_categories['product_category_name_english'], installment_top_categories['payment_installments'], color='darkblue')
-plt.xlabel('Percentage of Installment Payments (%)', fontsize=12)
-plt.ylabel('Product Category', fontsize=12)
-plt.title('Top 10 Categories by Installment Usage (%)', fontsize=14, pad=20)
-plt.xlim(0, 100)
-for bar in bars:
-    width = bar.get_width()
-    plt.text(width - 5, bar.get_y() + bar.get_height()/2,
-             f'{width}%',
-             ha='right', va='center', color='white', fontweight='bold')
-plt.tight_layout()
-plt.show()
-```
-<center>
-      <img src="png/installment.categories.png"/>
-  </center>
-  
-- This pattern is especially pronounced in **high-ticket** or **aspirational categories** like **PCs (75% installment rate), kitchenware, mattresses**, and **home appliances**. Even in **fashion** and **gift** categories, **installment** usage often **exceeds 60%**.
-
-#### Summary
-In short, **Brazil’s payment structure** is heavily **credit-driven**, with strong reliance on **installment plans** for both **essentials and lifestyle goods**. **Merchants** and **platforms** that **accommodate** — or **incentivize** — this behavior are better positioned to drive **conversion** and **basket size**. Conversely, any **limitations** on **credit usage** or **installment options** could act as a major **friction point** in the **purchase journey**.
 
 ## III. Identify potential issues
 
@@ -1302,7 +1376,7 @@ plt.show()
 - Large cost differences across states suggest geographic disparity and uneven delivery performance.
 - Opportunity exists to optimize freight strategies in high-cost regions through warehouse placement or courier negotiations.
 
-## V. Enhance customer experience
+## IV. Enhance customer experience
 
 ### 1. Customer segmentation:
 First, we need to identify the customer segmentation for better understanding. We can use a simple segmentation method such as RFM, which groups customers according to three metrics:
@@ -1549,6 +1623,17 @@ As we can see in the map, most of the customer value for Olist's sellers is conc
 - Target marketing and retention strategies in high-CLV areas like São Paulo and Rio for better ROI.
 - Growth opportunities may exist in emerging cities like Brasília, Curitiba, and Salvador.
 - Regional adaptations may be needed for the North/Northeast to improve CLV, such as tailored logistics, local partnerships, or digital onboarding.
+
+# CONCLUSION
+
+In my exploration of the Olist dataset, I have uncovered several insights into the company’s operations: 
+- Olist experienced steady growth over the period covered by the dataset, with a significant increase in sales around Christmas.
+- Sales trends showed that certain product categories are growing much faster than others.
+- Purchasing patterns indicate that customers are more likely to place orders at the start of the week.
+- The bulk of sales is concentrated in populous cities, particularly São Paulo and Rio de Janeiro.
+- Shipping durations vary significantly across different cities and are sometimes affected by postal strikes.
+- Despite many positive reviews, there are frequent complaints about shipping delays. Most orders are of low value, though there is considerable variation in the costs of orders.
+
 
 
 
