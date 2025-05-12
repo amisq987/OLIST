@@ -1304,6 +1304,7 @@ plt.show()
 
 ## V. Enhance customer experience
 
+### 1. Customer segmentation:
 First, we need to identify the customer segmentation for better understanding. We can use a simple segmentation method such as RFM, which groups customers according to three metrics:
 - Recency: How recently did the customer place the last order?
 - Frequency: How often does the customer place orders?
@@ -1446,9 +1447,108 @@ Further segmentation could explore whether these customers:
 - Experience fewer delivery issues.
 Understanding and nurturing this small, loyal group could have a disproportionately large impact on long-term business performance.
 
+### 2. Customer lifetime value (CLV):
 
+Customer Lifetime Value (CLV) is a crucial metric in business that measures the predicted value of the future relationship with a customer. Let's calculate CLV for the customers in our dataset.
 
+To start, we'll calculate each of the components of CLV for each client:
+- Purchase Frequency (PF), the number of orders a client placed.
+- Average Order Value (AOV), the sum of payments divided by the number of orders.
+- Average Customer Lifespan (ACL), the number of weeks from the first to the last order, with a minimum value of 1.
+To make the code more readable, I'll calculate each of the CLV components:
 
+```python
+customer_data = df.groupby('customer_unique_id').agg(
+    zip_code_prefix=('customer_zip_code_prefix', 'first'),
+    order_count=('order_id', pd.Series.nunique),
+    total_payment=('payment_value', 'sum'),
+    first_order_day=('order_purchase_timestamp', 'min'),
+    last_order_day=('order_purchase_timestamp', 'max')
+).reset_index()
+
+# Calculate derived metrics
+customer_data['PF'] = customer_data['order_count']
+customer_data['AOV'] = customer_data['total_payment'] / customer_data['order_count']
+days_active = (customer_data['last_order_day'] - customer_data['first_order_day']).dt.days
+customer_data['ACL'] = days_active.apply(lambda x: 1 if x < 7 else x / 7)
+
+# Select relevant columns
+result = customer_data[['customer_unique_id', 'zip_code_prefix', 'PF', 'AOV', 'ACL']]
+
+print(result.head())
+```
+<center>
+      <img src="png/clv.breakdown.png"/>
+  </center>
+  
+Since my goal is to build a map of the distribution of CLV around Brazil, we'll also need to add the latitude and longitude of each zip code prefix. Using the previous query as CTE, we can calculate the average CLV and the number of customers for each zip code prefix. To calculate CLV we just multiply each of its terms:
+<center>
+      CLV = PF . AOV . ACL
+</center>
+
+```python
+# Group by zip_code prefix to compute average CLV and customer count
+zip_agg = result.groupby('zip_code_prefix').agg(
+    avg_CLV=('PF', lambda x: (x * result.loc[x.index, 'AOV'] * result.loc[x.index, 'ACL']).mean()),
+    customer_count=('customer_unique_id', 'count')
+).reset_index()
+
+# Merge with geolocation data
+zip_agg = zip_agg.merge(
+    df,
+    left_on='zip_code_prefix',
+    right_on='geolocation_zip_code_prefix',
+    how='left'
+)
+
+# Drop duplicate zip_prefix rows, keeping the first occurrence
+zip_agg = zip_agg.drop_duplicates(subset=['zip_code_prefix'], keep='first')
+
+# Optionally select/rename relevant columns
+zip_agg = zip_agg.rename(columns={
+    'geolocation_lat': 'latitude',
+    'geolocation_lng': 'longitude',
+    'zip_code_prefix': 'zip_prefix'
+})[['zip_prefix', 'avg_CLV', 'customer_count', 'latitude', 'longitude']]
+
+print(zip_agg.head())
+```
+<center>
+      <img src="png/clv.lon.lat.png"/>
+  </center>
+
+With these data we can create an interactive map using the folium library. For each zip code prefix a circle is drawn in the map, using opacity to indicate CLV and size to indicate the number of customers:
+
+```python
+import folium
+# Filter out rows with NaN values in latitude or longitude
+zip_agg_filtered = zip_agg.dropna(subset=['latitude', 'longitude'])
+map = folium.Map(location=[-14.2350, -51.9253], zoom_start=4)
+for i, zip_prefix in zip_agg_filtered.iterrows():
+    folium.CircleMarker(
+        location=[zip_prefix['latitude'], zip_prefix['longitude']],
+        radius=0.1*np.sqrt(zip_prefix['customer_count']),
+        color=None,
+        fill_color='#85001d',
+        fill_opacity=0.1+0.1*np.sqrt(zip_prefix['avg_CLV']/zip_agg['avg_CLV'].max()),
+        popup=(
+            f"<b>Zip Code Prefix:</b> {int(zip_prefix['zip_prefix'])}<br>"
+            f"<b>Average CLV:</b> {int(zip_prefix['avg_CLV'])}<br>"
+            f"<b>Customers:</b> {int(zip_prefix['customer_count'])}"
+        )
+    ).add_to(map)
+map
+```
+<center>
+      <img src="png/map.png"/>
+  </center>
+
+As we can see in the map, most of the customer value for Olist's sellers is concentrated in the south-east of Brazil, in the most populated areas: the state of São Paulo, and around the cities of Rio de Janeiro and Belo Horizonte. These are Brazil’s most economically developed and populous regions, indicating strong purchasing power and customer retention.
+
+📈 **Strategic implications**
+- Target marketing and retention strategies in high-CLV areas like São Paulo and Rio for better ROI.
+- Growth opportunities may exist in emerging cities like Brasília, Curitiba, and Salvador.
+- Regional adaptations may be needed for the North/Northeast to improve CLV, such as tailored logistics, local partnerships, or digital onboarding.
 
 
 
