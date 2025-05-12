@@ -67,9 +67,47 @@ for name, df in dfs.items():
     print(f"Column Names:\n{df.columns.tolist()}\n")
     print(f"Data Types:\n{df.dtypes}")
 ```
-```python
-df.info()
-```
+- **Orders** table:
+<center>
+      <img src="png/table.info1.png" width="900" />
+  </center>
+  
+- **Order_items** table:
+<center>
+      <img src="png/table.info2.png" width="900" />
+  </center>
+
+- **Payments** table:
+<center>
+      <img src="png/table.info3.png" width="900" />
+  </center>
+
+- **Reviews** table:
+<center>
+      <img src="png/table.info4.png" width="900" />
+  </center>
+
+- **Customers** table:
+<center>
+      <img src="png/table.info5.png" width="900" />
+  </center>
+
+- **Sellers** table:
+<center>
+      <img src="png/table.info6.png" width="900" />
+  </center>
+
+- **Products** table:
+<center>
+      <img src="png/table.info7.png" width="900" />
+  </center>
+
+
+- **Geolocation** and **Categories** tables:
+<center>
+      <img src="png/table.info8.png" width="900" />
+  </center>
+  
 # DATA CLEANING
 
 ## Missing Values:
@@ -108,6 +146,14 @@ for name, df in dfs.items():
     print(f"\n{name.upper()} - NULL values:")
     print(df.isnull().sum(),'\n')
 ```
+<center>
+      <img src="png/nullvalue1.png"/>
+  </center>
+  
+<center>
+      <img src="png/nullvalue2.png"/>
+  </center>
+
 
 1. Handle missing data in **ORDERS** table:
 
@@ -124,9 +170,17 @@ for col in date_cols:
 ```python
 orders[orders["order_approved_at"].isnull()]["order_status"].value_counts()
 ```
+<center>
+      <img src="png/order_approved_at.png"/>
+  </center>
+  
 ```python
 orders[orders["order_approved_at"].isnull() & (orders["order_status"] == "delivered")]["order_id"].values
 ```
+<center>
+      <img src="png/order_approved_at.order_id.png"/>
+  </center>
+  
 ```python
 payments[payments["order_id"].isin(['e04abd8149ef81b95221e88f6ed9ab6a',
        '8a9adc69528e1001fc68dd0aaebbb54a',
@@ -143,6 +197,10 @@ payments[payments["order_id"].isin(['e04abd8149ef81b95221e88f6ed9ab6a',
        '3c0b8706b065f9919d0505d3b3343881',
        '2babbb4b15e6d2dfe95e2de765c97bce'])]
 ```
+<center>
+      <img src="png/order_approved_at.order_id.details.png"/>
+  </center>
+  
 ```python
 # Calculate average time from purchase to approval
 avg_approval_time = (orders['order_approved_at'] - orders['order_purchase_timestamp']).mean()
@@ -152,15 +210,29 @@ orders['order_approved_at'] = orders['order_approved_at'].fillna(
     orders['order_purchase_timestamp'] + avg_approval_time
 )
 ```
+```python
+orders[orders["order_approved_at"].isnull()]["order_status"].value_counts()
+```
+<center>
+      <img src="png/order_approved_at.isnull.again.png"/>
+  </center>
 
 - Column **order_delivered_carrier_date**
 
 ```python
 orders[orders["order_delivered_carrier_date"].isnull()]["order_status"].value_counts()
 ```
+<center>
+      <img src="png/order_delivered_customer_date.isnull.png"/>
+  </center>
+  
 ```python
 orders[(orders["order_delivered_carrier_date"].isnull()) & (orders["order_status"] == "delivered")]
 ```
+<center>
+      <img src="png/order_delivered_carrier_date.order_id.png"/>
+  </center>
+  
 ```python
 orders = orders[orders['order_id'] != '2d858f451373b04fb5c984a1cc2defaf']
 delivered1 = orders[orders['order_status'] == 'delivered']
@@ -174,9 +246,17 @@ orders['order_delivered_carrier_date'].fillna(pd.to_datetime(orders['order_appro
 ```python
 orders[orders["order_delivered_customer_date"].isnull()]["order_status"].value_counts()
 ```
+<center>
+      <img src="png/order_delivered_customer_date.isnull.png"/>
+  </center>
+  
 ```python
 orders[(orders["order_delivered_customer_date"].isnull()) & (orders["order_status"] == "delivered")]
 ```
+<center>
+      <img src="png/order_delivered_customer_date.order_status.details"/>
+  </center>
+  
 ```python
 delivered2 = orders[orders['order_status'] == 'delivered']
 avg_carrier_to_delivery = (pd.to_datetime(delivered['order_delivered_customer_date']) - 
@@ -186,6 +266,9 @@ orders['order_delivered_customer_date'].fillna(pd.to_datetime(orders['order_deli
 ```
 orders.isnull().sum()
 ```
+<center>
+      <img src="png/order_delivered_customer_date.isnull.again"/>
+  </center>
 
 2. Handle missing data in **PRODUCTS** table:
 
@@ -200,19 +283,34 @@ products['product_width_cm'] = products['product_width_cm'].fillna(products['pro
 ```
 products.isnull().sum()
 ```
+<center>
+      <img src="png/products.isnull"/>
+  </center>
+  
 ## Duplicates:
 
 ```python
 for name, df in dfs.items():
     print(f"\n{name.upper()} - Duplicates: {df.duplicated().sum()}")
 ```
+<center>
+      <img src="png/dfs.duplicated"/>
+  </center>
+  
 ```python
 geolocation.duplicated().value_counts()
 ```
+<center>
+      <img src="png/geolocation.duplicated.count"/>
+  </center>
+  
 ```python
 geolocation = geolocation.drop_duplicates()
 geolocation.duplicated().sum()
 ```
+<center>
+      <img src="png/geolocation.drop_duplicated"/>
+  </center>
 
 ## Merge Dataframe
 
@@ -226,6 +324,10 @@ df = df.merge(sellers, on='seller_id', how='inner')
 df = df.merge(categories, on='product_category_name', how='inner')
 df.info()
 ```
+<center>
+      <img src="png/df.info()"/>
+  </center>
+  
 ```python
 # Create useful features from order_purchase_timestamp
 df['day_of_week_int'] = df['order_purchase_timestamp'].dt.weekday + 1  # Day of week as integer (1 = Monday, etc.)
@@ -238,17 +340,36 @@ df['date'] = df['order_purchase_timestamp'].dt.to_period('M')          # Monthly
 df['delivery_time'] = (df['order_delivered_customer_date'] - df['order_purchase_timestamp']).dt.days
 ```
 ```python
+df.isnull().sum()
+```
+<center>
+      <img src="png/df.isnull"/>
+  </center>
+
+<center>
+      <img src="png/df.isnull1"/>
+  </center>
+  
+```python
 geo_avg = geolocation.groupby('geolocation_zip_code_prefix')[['geolocation_lat', 'geolocation_lng']].mean().reset_index()
 
 df = df.merge(geo_avg, how='left', left_on='customer_zip_code_prefix', right_on='geolocation_zip_code_prefix')
 
 df.isna().sum()
 ```
+<center>
+      <img src="png/df.mergegeolocation"/>
+  </center>
+  
 ```python
 median_coords = df.groupby('customer_city')[['geolocation_lat', 'geolocation_lng']].transform('median')
 df[['geolocation_lat', 'geolocation_lng']] = df[['geolocation_lat', 'geolocation_lng']].fillna(median_coords)
 df.isna().sum()
 ```
+<center>
+      <img src="png/df.mergegeolocation.filter1"/>
+  </center>
+
 ```python
 median_lat = df['geolocation_lat'].median()
 median_lng = df['geolocation_lng'].median()
@@ -257,9 +378,16 @@ df['geolocation_lat'] = df['geolocation_lat'].fillna(median_lat)
 df['geolocation_lng'] = df['geolocation_lng'].fillna(median_lng)
 df.isnull().sum()
 ```
+<center>
+      <img src="png/df.mergegeolocation.filter"/>
+  </center>
+  
 ```python
 df.duplicated().sum()
 ```
+<center>
+      <img src="png/df.duplicated"/>
+  </center>
 
 # EXPLORATORY DATA ANALYSIS (EDA)
 
