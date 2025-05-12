@@ -404,12 +404,16 @@ df.info()
 <center>
       <img src="png/df.info1.png"/>
   </center>
-  
+
 ```python
 df.nunique()
 ```
 <center>
       <img src="png/df.nunique.png"/>
+  </center>
+
+<center>
+      <img src="png/df.nunique1.png"/>
   </center>
   
 ```python
@@ -430,7 +434,7 @@ df['payment_value'].describe()
 df['payment_type'].value_counts()
 ```
 <center>
-      <img src="png/paymenttype.describe.png"/>
+      <img src="png/paymenttype.count.png"/>
   </center>
   
 ```python
