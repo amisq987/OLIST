@@ -97,8 +97,9 @@ for name, summary in missing_data_summaries.items():
     print("\n")
 ```
 <center>
-      <img src="png/50% missing.png" width="900" />
+      <img src="png/50% missing.png"/>
   </center>
+  
 ```python
 reviews = reviews.drop('review_comment_title', axis=1)
 ```
