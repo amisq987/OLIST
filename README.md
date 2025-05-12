@@ -76,17 +76,6 @@ df.info()
 - Check the missing values. columns that are missing by more than 50 percent will be considered to be removed.
 ```python
 def missing_data_summary(df, threshold=0):
-    """
-    Summarizes missing data, showing count and percentage of missing values for each column.
-    Filters columns based on a missing percentage threshold.
-    
-    Parameters:
-        df (pd.DataFrame): The dataframe to analyze.
-        threshold (float): The minimum percentage of missing data to include in the summary.
-    
-    Returns:
-        pd.DataFrame: A summary of missing data.
-    """
     return (pd.DataFrame(df.isna().sum())
             .reset_index()
             .rename(columns={'index': 'Column', 0: 'mis_count'})
@@ -107,6 +96,9 @@ for name, summary in missing_data_summaries.items():
     print(summary)
     print("\n")
 ```
+<center>
+      <img src="png/50% missing.png" width="900" />
+  </center>
 ```python
 reviews = reviews.drop('review_comment_title', axis=1)
 ```
