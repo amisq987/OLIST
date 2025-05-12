@@ -176,7 +176,7 @@ avg_approval_to_carrier = (pd.to_datetime(delivered['order_delivered_carrier_dat
 orders['order_delivered_carrier_date'].fillna(pd.to_datetime(orders['order_approved_at']) + avg_approval_to_carrier, inplace=True)
 ```
 
-- Column **order_delivered_carrier_date**
+- Column **order_delivered_customer_date**
 
 ```python
 orders[orders["order_delivered_customer_date"].isnull()]["order_status"].value_counts()
