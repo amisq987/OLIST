@@ -254,7 +254,7 @@ orders[orders["order_delivered_customer_date"].isnull()]["order_status"].value_c
 orders[(orders["order_delivered_customer_date"].isnull()) & (orders["order_status"] == "delivered")]
 ```
 <center>
-      <img src="png/order.delivered.customer.date.order.status.details"/>
+      <img src="png/order.delivered.customer.date.order.status.details.png"/>
   </center>
   
 ```python
@@ -267,7 +267,7 @@ orders['order_delivered_customer_date'].fillna(pd.to_datetime(orders['order_deli
 orders.isnull().sum()
 ```
 <center>
-      <img src="png/order.delivered.customer.date.isnull.again"/>
+      <img src="png/order.delivered.customer.date.isnull.again.png"/>
   </center>
 
 2. Handle missing data in **PRODUCTS** table:
@@ -284,7 +284,7 @@ products['product_width_cm'] = products['product_width_cm'].fillna(products['pro
 products.isnull().sum()
 ```
 <center>
-      <img src="png/products.isnull"/>
+      <img src="png/products.isnull.png"/>
   </center>
   
 ## Duplicates:
@@ -294,14 +294,14 @@ for name, df in dfs.items():
     print(f"\n{name.upper()} - Duplicates: {df.duplicated().sum()}")
 ```
 <center>
-      <img src="png/dfs.duplicated"/>
+      <img src="png/dfs.duplicated.png"/>
   </center>
   
 ```python
 geolocation.duplicated().value_counts()
 ```
 <center>
-      <img src="png/geolocation.duplicated.count"/>
+      <img src="png/geolocation.duplicated.count.png"/>
   </center>
   
 ```python
@@ -309,7 +309,7 @@ geolocation = geolocation.drop_duplicates()
 geolocation.duplicated().sum()
 ```
 <center>
-      <img src="png/geolocation.drop.duplicated"/>
+      <img src="png/geolocation.drop.duplicated.png"/>
   </center>
 
 ## Merge Dataframe
@@ -325,7 +325,7 @@ df = df.merge(categories, on='product_category_name', how='inner')
 df.info()
 ```
 <center>
-      <img src="png/df.info"/>
+      <img src="png/df.info.png"/>
   </center>
   
 ```python
@@ -343,11 +343,11 @@ df['delivery_time'] = (df['order_delivered_customer_date'] - df['order_purchase_
 df.isnull().sum()
 ```
 <center>
-      <img src="png/df.isnull"/>
+      <img src="png/df.isnull.png"/>
   </center>
 
 <center>
-      <img src="png/df.isnull1"/>
+      <img src="png/df.isnull1.png"/>
   </center>
   
 ```python
@@ -358,7 +358,7 @@ df = df.merge(geo_avg, how='left', left_on='customer_zip_code_prefix', right_on=
 df.isna().sum()
 ```
 <center>
-      <img src="png/df.mergegeolocation"/>
+      <img src="png/df.mergegeolocation.png"/>
   </center>
   
 ```python
@@ -367,7 +367,7 @@ df[['geolocation_lat', 'geolocation_lng']] = df[['geolocation_lat', 'geolocation
 df.isna().sum()
 ```
 <center>
-      <img src="png/df.mergegeolocation.filter1"/>
+      <img src="png/df.mergegeolocation.filter1.png"/>
   </center>
 
 ```python
@@ -379,14 +379,14 @@ df['geolocation_lng'] = df['geolocation_lng'].fillna(median_lng)
 df.isnull().sum()
 ```
 <center>
-      <img src="png/df.mergegeolocation.filter"/>
+      <img src="png/df.mergegeolocation.filter.png"/>
   </center>
   
 ```python
 df.duplicated().sum()
 ```
 <center>
-      <img src="png/df.duplicated"/>
+      <img src="png/df.duplicated.png"/>
   </center>
 
 # EXPLORATORY DATA ANALYSIS (EDA)
