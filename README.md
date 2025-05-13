@@ -1560,10 +1560,7 @@ print(result.head())
   </center>
   
 Since my goal is to build a map of the distribution of CLV around Brazil, we'll also need to add the latitude and longitude of each zip code prefix. Using the previous query as CTE, we can calculate the average CLV and the number of customers for each zip code prefix. To calculate CLV we just multiply each of its terms:
-<center>
-      CLV = PF . AOV . ACL
-</center>
-
+                                                      **CLV = PF . AOV . ACL**
 ```python
 # Group by zip_code prefix to compute average CLV and customer count
 zip_agg = result.groupby('zip_code_prefix').agg(
@@ -1637,6 +1634,7 @@ In my exploration of the Olist dataset, I have uncovered several insights into t
 - The bulk of sales is concentrated in populous cities, particularly São Paulo and Rio de Janeiro.
 - Shipping durations vary significantly across different cities and are sometimes affected by postal strikes.
 - Despite many positive reviews, there are frequent complaints about shipping delays. Most orders are of low value, though there is considerable variation in the costs of orders.
+
 
 
 
