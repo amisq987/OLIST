@@ -2,6 +2,7 @@
 
 # Table of Contents
 
+1. **[Project Objective](#project-objective)**
 1. **[SCOPE](#scope)**
    - [Project Objective](#project-objective)
    - [Technologies Used](#technologies_used)
