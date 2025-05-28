@@ -1,15 +1,32 @@
 # OLIST
 
+# Table of Contents
+
+1. **[SCOPE](#scope)**
+   - [Project Objective](#project_objective)
+   - [Technologies Used](#technologies_used)
+   - [About the company](#About_the_company)
+   - [Dataset](#dataset)
+2. **[DATA LOADING](#data_loading)**
+3. **[DATA CLEANING](#data_cleaning)**
+   - [Missing Values](#missing_values)
+   - [Duplicates](#duplicates)
+   - [Merge Dataframe](#merge_dataframe)
+4. **[EXPLORATORY DATA ANALYSIS (EDA)](#exploratory_data_analysis_(eda))**
+   - [Initial Data Overview](#initial_data_overview)
+   - [Evaluate sales performance and Analyze customer purchasing behavior](#Evaluate_sales_performance_and_Analyze_customer_purchasing_behavior)
+   - [Identify potential issues](#Identify_potential_issues)
+5. **[CONCLUSION](#conclusion)**
+
 # 🔍 SCOPE
-You’ve just joined Olist as a Junior Data Analyst on the Sales Optimization team. Olist is a major e-commerce platform in Brazil, known for connecting businesses with customers online. To stay ahead in a competitive market, Olist needs to enhance customer experience, optimize seller performance, improve logistics. You’ve been given historical orders, customers, products, sellers and geolocation data. Your goal is to uncover data-driven insights that support these key focus areas—such as analyzing buyer behavior, identifying top-performing products, evaluating seller KPIs, optimizing inventory. But first,Olist executives must approve your recommendations, so they must be backed up with compeling data insights and professional data visualizations. 
+You’ve just joined Olist as a Junior Data Analyst on the Sales Optimization team. Olist is a major e-commerce platform in Brazil, known for connecting businesses with customers online. To stay ahead in a competitive market, Olist needs to enhance customer experience, optimize seller performance, improve logistics. You’ve been given historical orders, customers, products, sellers and geolocation data. Your goal is to uncover data-driven insights that support these key focus areas—such as analyzing buyer behavior, identifying top-performing products, and identifying any potential issues. But first, Olist executives must approve your recommendations, so they must be backed up with compeling data insights and professional data visualizations. 
 
 ## 📌 Project Objective
 The project aims to ensure the objectives of the business analysis project for sales management—such as optimizing the sales process, increasing revenue and profit, gaining deeper customer insights, enhancing advertising effectiveness, improving user experience, optimizing inventory management, and forecasting market trends. Key objectives include:
 
-- **Identify potential issues**: Propose improvements that enhance performance and reduce operational costs.
-- **Analyze customer purchasing behavior** : Include purchase frequency, average order value, and popular product categories.
+- **Analyze customer behavior** : Include behavior patterns such as purchase frequency, average order value, and popular product categories.
 - **Evaluate sales performance**: Assess overall revenue, revenue by individual products or product groups, and revenue over time.
-- **Enhance customer experience**: Analyzing customer service metrics such as response time, satisfaction rate, and the number of complaints.
+- **Identify potential issues**: Propose improvements that enhance performance and reduce operational costs.
 
 ## 🛠 Technologies Used  
 - Python (Pandas, NumPy, Matplotlib, Seaborn)    
@@ -24,7 +41,7 @@ Moreover, the platform facilitates product listing and inventory management by a
 
 - Source: [Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
 
-The dataset has information of 100k orders from 2016 to 2018 made at multiple marketplaces in Brazil. Its features allows viewing an order from multiple dimensions: from order status, price, payment and freight performance to customer location, product attributes and finally reviews written by customers, a geolocation dataset that relates Brazilian zip codes to lat/lng coordinates.
+> The dataset has information of 100k orders from 2016 to 2018 made at multiple marketplaces in Brazil. Its features allows viewing an order from multiple dimensions: from order status, price, payment and freight performance to customer location, product attributes and finally reviews written by customers, a geolocation dataset that relates Brazilian zip codes to lat/lng coordinates.
 Here's the Entity-Relationship Diagram of the resulting SQLite database:
 <center>
       <img src="schema.png" width="900" />
@@ -993,8 +1010,251 @@ A stark divide exists between luxury and low-cost goods. While pcs, coffee ovens
 
 Categories combining low volume, poor reviews, and slow shipping (e.g., insurance_services, office_furniture, home_comfort_2) are deemed non-viable. The focus should shift to fast-moving, well-reviewed essentials with efficient logistics.
 
+### 6. Customer segmentation:
+First, we need to identify the customer segmentation for better understanding. We can use a simple segmentation method such as RFM, which groups customers according to three metrics:
+- Recency: How recently did the customer place the last order?
+- Frequency: How often does the customer place orders?
+- Monetary value: How much does the customer spend on average?
+Afterward, each customer is assigned to a category according to its RFM scores. This segmentation process is particularly useful for personalized marketing or to improve customer service by addressing the specific needs of different customer groups.
 
-## III. Identify potential issues
+Since Python would be less efficient for this task compared to SQL, I will perform the analysis using SQL queries instead.
+
+The following SQL query is a bit longer so I'll break it down in 3 steps:
+1. Calculate each of the three RFM scores in three CTEs using the NTILE function, which ranks each customer from 1-5 in the given score.
+2. Assign each customer to one of 11 groups, using the method outlined in this article by [Mark Rittman](https://www.rittmananalytics.com/blog/2021/6/20/rfm-analysis-and-customer-segmentation-using-looker-dbt-and-google-bigquery).
+3. Calculate statistics for each group, so we can plot them by sales, recency and size.
+
+```sql
+-- 1. Calculate RFM scores
+WITH RecencyScore AS (
+    SELECT customer_unique_id,
+           MAX(order_purchase_timestamp) AS last_purchase,
+           NTILE(5) OVER (ORDER BY MAX(order_purchase_timestamp) DESC) AS recency
+    FROM orders
+        JOIN customers USING (customer_id)
+    WHERE order_status = 'delivered'
+    GROUP BY customer_unique_id
+),
+FrequencyScore AS (
+    SELECT customer_unique_id,
+           COUNT(order_id) AS total_orders,
+           NTILE(5) OVER (ORDER BY COUNT(order_id) DESC) AS frequency
+    FROM orders
+        JOIN customers USING (customer_id)
+    WHERE order_status = 'delivered'
+    GROUP BY customer_unique_id
+),
+MonetaryScore AS (
+    SELECT customer_unique_id,
+           SUM(price) AS total_spent,
+           NTILE(5) OVER (ORDER BY SUM(price) DESC) AS monetary
+    FROM orders
+        JOIN order_items USING (order_id)
+JOIN customers USING (customer_id)
+    WHERE order_status = 'delivered'
+    GROUP BY customer_unique_id
+),
+
+-- 2. Assign each customer to a group
+RFM AS (
+    SELECT last_purchase, total_orders, total_spent,
+        CASE
+            WHEN recency = 1 AND frequency + monetary IN (1, 2, 3, 4) THEN "Champions"
+            WHEN recency IN (4, 5) AND frequency + monetary IN (1, 2) THEN "Can't Lose Them"
+            WHEN recency IN (4, 5) AND frequency + monetary IN (3, 4, 5, 6) THEN "Hibernating"
+            WHEN recency IN (4, 5) AND frequency + monetary IN (7, 8, 9, 10) THEN "Lost"
+            WHEN recency IN (2, 3) AND frequency + monetary IN (1, 2, 3, 4) THEN "Loyal Customers"
+            WHEN recency = 3 AND frequency + monetary IN (5, 6) THEN "Needs Attention"
+            WHEN recency = 1 AND frequency + monetary IN (7, 8) THEN "Recent Users"
+            WHEN recency = 1 AND frequency + monetary IN (5, 6) OR
+                recency = 2 AND frequency + monetary IN (5, 6, 7, 8) THEN "Potentital Loyalists"
+            WHEN recency = 1 AND frequency + monetary IN (9, 10) THEN "Price Sensitive"
+            WHEN recency = 2 AND frequency + monetary IN (9, 10) THEN "Promising"
+            WHEN recency = 3 AND frequency + monetary IN (7, 8, 9, 10) THEN "About to Sleep"
+        END AS RFM_Bucket
+    FROM RecencyScore
+        JOIN FrequencyScore USING (customer_unique_id)
+        JOIN MonetaryScore USING (customer_unique_id)
+)
+
+-- 3. Calculate group statistics for plotting
+SELECT RFM_Bucket, 
+       AVG(JULIANDAY('now') - JULIANDAY(last_purchase)) AS avg_days_since_purchase, 
+       AVG(total_spent / total_orders) AS avg_sales_per_customer,
+       COUNT(*) AS customer_count
+FROM RFM
+GROUP BY RFM_Bucket
+```
+Next, I will export the data as a CSV file named rfm_df for further data visualization.
+```python
+rfm_df = pd.read_csv('rfm_df.csv')
+rfm_df
+```
+<center>
+      <img src="png/rfm.png"/>
+  </center>
+  
+Let's visualize this. I'll plot each group using average recency on the x-axis, average sales per customer on the y-axis and circle size to represent the amount of customers in each group:
+
+```python
+plt.figure(figsize=(12, 8))
+scatter = plt.scatter(df['avg_days_since_purchase'], df['avg_sales_per_customer'],
+    s=df['customer_count']*0.55, c=sns.color_palette('Set3', len(df)))
+plt.xlabel('Average days since the last purchase', fontsize=14)
+plt.ylabel('Average sales per customer', fontsize=14)
+plt.title('RFM segmentation of customers')
+plt.grid(True)
+for i, text in enumerate(df['RFM_Bucket']):
+    plt.annotate(text, (df['avg_days_since_purchase'][i], df['avg_sales_per_customer'][i]), 
+        ha='center', va='center')
+plt.gca().invert_xaxis()
+plt.xlim(2530, 2070)
+plt.ylim(0, 380)
+plt.show()
+```
+<center>
+      <img src="png/rfm.visual.png"/>
+  </center>
+  
+The previous plot shows us where each customer segment falls in terms of recency and sales. For example, the 'Champions' segment on the top right has high sales and has purchased recently, while the 'Lost' segment on the opposite side has low sales and no recent purchases.
+Let's build a plot of the proportion of one-time customers vs repeat customers to gain more insight into how loyal are people who buy through Olist:
+
+```python
+# Calculate customer purchase frequency
+customer_orders = df.groupby('customer_unique_id')['order_id'].nunique().reset_index()
+customer_orders['customer_type'] = customer_orders['order_id'].apply(lambda x: 'repeat' if x > 1 else 'one-time')
+
+# Calculate proportions
+df['proportions'] = customer_orders['customer_type'].value_counts(normalize=True) * 100
+```  
+```python
+# Calculate customer purchase frequency
+customer_orders = df.groupby('customer_unique_id')['order_id'].nunique().reset_index()
+customer_orders['customer_type'] = customer_orders['order_id'].apply(lambda x: 'repeat' if x > 1 else 'one-time')
+
+# Calculate proportions
+proportions= customer_orders['customer_type'].value_counts(normalize=True) * 100
+
+fig, ax = plt.subplots()
+ax.pie(proportions, labels = proportions.index, startangle=5,autopct='%1.2f%%')
+ax.set_title('Proportion of one-time vs repeat customers')
+fig.set_facecolor('white')
+plt.show()
+```
+<center>
+      <img src="png/onetime.png"/>
+  </center>
+  
+As we can see most customers only place a single order through Olist. This may suggest the market behaves like a one-shot purchase environment — a key consideration for both retention efforts and product strategy.
+While rare, repeat customers likely represent a more loyal segment worth deeper investigation. Their behavior may differ significantly in terms of product selection, satisfaction, and lifetime value.
+Further segmentation could explore whether these customers:
+- Leave more positive reviews.
+- Spend more per order.
+- Experience fewer delivery issues.
+Understanding and nurturing this small, loyal group could have a disproportionately large impact on long-term business performance.
+
+### 7. Customer lifetime value (CLV):
+
+Customer Lifetime Value (CLV) is a crucial metric in business that measures the predicted value of the future relationship with a customer. Let's calculate CLV for the customers in our dataset.
+
+To start, we'll calculate each of the components of CLV for each client:
+- Purchase Frequency (PF), the number of orders a client placed.
+- Average Order Value (AOV), the sum of payments divided by the number of orders.
+- Average Customer Lifespan (ACL), the number of weeks from the first to the last order, with a minimum value of 1.
+To make the code more readable, I'll calculate each of the CLV components:
+
+```python
+customer_data = df.groupby('customer_unique_id').agg(
+    zip_code_prefix=('customer_zip_code_prefix', 'first'),
+    order_count=('order_id', pd.Series.nunique),
+    total_payment=('payment_value', 'sum'),
+    first_order_day=('order_purchase_timestamp', 'min'),
+    last_order_day=('order_purchase_timestamp', 'max')
+).reset_index()
+
+# Calculate derived metrics
+customer_data['PF'] = customer_data['order_count']
+customer_data['AOV'] = customer_data['total_payment'] / customer_data['order_count']
+days_active = (customer_data['last_order_day'] - customer_data['first_order_day']).dt.days
+customer_data['ACL'] = days_active.apply(lambda x: 1 if x < 7 else x / 7)
+
+# Select relevant columns
+result = customer_data[['customer_unique_id', 'zip_code_prefix', 'PF', 'AOV', 'ACL']]
+
+print(result.head())
+```
+<center>
+      <img src="png/clv.breakdown.png"/>
+  </center>
+  
+Since my goal is to build a map of the distribution of CLV around Brazil, we'll also need to add the latitude and longitude of each zip code prefix. Using the previous query as CTE, we can calculate the average CLV and the number of customers for each zip code prefix. To calculate CLV we just multiply each of its terms:
+                                                      **CLV = PF . AOV . ACL**
+```python
+# Group by zip_code prefix to compute average CLV and customer count
+zip_agg = result.groupby('zip_code_prefix').agg(
+    avg_CLV=('PF', lambda x: (x * result.loc[x.index, 'AOV'] * result.loc[x.index, 'ACL']).mean()),
+    customer_count=('customer_unique_id', 'count')
+).reset_index()
+
+# Merge with geolocation data
+zip_agg = zip_agg.merge(
+    df,
+    left_on='zip_code_prefix',
+    right_on='geolocation_zip_code_prefix',
+    how='left'
+)
+
+# Drop duplicate zip_prefix rows, keeping the first occurrence
+zip_agg = zip_agg.drop_duplicates(subset=['zip_code_prefix'], keep='first')
+
+# Optionally select/rename relevant columns
+zip_agg = zip_agg.rename(columns={
+    'geolocation_lat': 'latitude',
+    'geolocation_lng': 'longitude',
+    'zip_code_prefix': 'zip_prefix'
+})[['zip_prefix', 'avg_CLV', 'customer_count', 'latitude', 'longitude']]
+
+print(zip_agg.head())
+```
+<center>
+      <img src="png/clv.lon.lat.png"/>
+  </center>
+
+With these data we can create an interactive map using the folium library. For each zip code prefix a circle is drawn in the map, using opacity to indicate CLV and size to indicate the number of customers:
+
+```python
+import folium
+# Filter out rows with NaN values in latitude or longitude
+zip_agg_filtered = zip_agg.dropna(subset=['latitude', 'longitude'])
+map = folium.Map(location=[-14.2350, -51.9253], zoom_start=4)
+for i, zip_prefix in zip_agg_filtered.iterrows():
+    folium.CircleMarker(
+        location=[zip_prefix['latitude'], zip_prefix['longitude']],
+        radius=0.1*np.sqrt(zip_prefix['customer_count']),
+        color=None,
+        fill_color='#85001d',
+        fill_opacity=0.1+0.1*np.sqrt(zip_prefix['avg_CLV']/zip_agg['avg_CLV'].max()),
+        popup=(
+            f"<b>Zip Code Prefix:</b> {int(zip_prefix['zip_prefix'])}<br>"
+            f"<b>Average CLV:</b> {int(zip_prefix['avg_CLV'])}<br>"
+            f"<b>Customers:</b> {int(zip_prefix['customer_count'])}"
+        )
+    ).add_to(map)
+map
+```
+<center>
+      <img src="png/map.png"/>
+  </center>
+
+As we can see in the map, most of the customer value for Olist's sellers is concentrated in the south-east of Brazil, in the most populated areas: the state of São Paulo, and around the cities of Rio de Janeiro and Belo Horizonte. These are Brazil’s most economically developed and populous regions, indicating strong purchasing power and customer retention.
+
+📈 **Strategic implications**
+- Target marketing and retention strategies in high-CLV areas like São Paulo and Rio for better ROI.
+- Growth opportunities may exist in emerging cities like Brasília, Curitiba, and Salvador.
+- Regional adaptations may be needed for the North/Northeast to improve CLV, such as tailored logistics, local partnerships, or digital onboarding.
+
+
+## II. Identify potential issues
 
 Our database also includes an order_reviews table. Users can score an order from 1 to 5 and write a comment on the order. 
 Let's count how many orders there are for each review score:
@@ -1380,250 +1640,6 @@ plt.show()
 - Large cost differences across states suggest geographic disparity and uneven delivery performance.
 - Opportunity exists to optimize freight strategies in high-cost regions through warehouse placement or courier negotiations.
 
-## IV. Enhance customer experience
-
-### 1. Customer segmentation:
-First, we need to identify the customer segmentation for better understanding. We can use a simple segmentation method such as RFM, which groups customers according to three metrics:
-- Recency: How recently did the customer place the last order?
-- Frequency: How often does the customer place orders?
-- Monetary value: How much does the customer spend on average?
-Afterward, each customer is assigned to a category according to its RFM scores. This segmentation process is particularly useful for personalized marketing or to improve customer service by addressing the specific needs of different customer groups.
-
-Since Python would be less efficient for this task compared to SQL, I will perform the analysis using SQL queries instead.
-
-The following SQL query is a bit longer so I'll break it down in 3 steps:
-1. Calculate each of the three RFM scores in three CTEs using the NTILE function, which ranks each customer from 1-5 in the given score.
-2. Assign each customer to one of 11 groups, using the method outlined in this article by [Mark Rittman](https://www.rittmananalytics.com/blog/2021/6/20/rfm-analysis-and-customer-segmentation-using-looker-dbt-and-google-bigquery).
-3. Calculate statistics for each group, so we can plot them by sales, recency and size.
-
-```sql
--- 1. Calculate RFM scores
-WITH RecencyScore AS (
-    SELECT customer_unique_id,
-           MAX(order_purchase_timestamp) AS last_purchase,
-           NTILE(5) OVER (ORDER BY MAX(order_purchase_timestamp) DESC) AS recency
-    FROM orders
-        JOIN customers USING (customer_id)
-    WHERE order_status = 'delivered'
-    GROUP BY customer_unique_id
-),
-FrequencyScore AS (
-    SELECT customer_unique_id,
-           COUNT(order_id) AS total_orders,
-           NTILE(5) OVER (ORDER BY COUNT(order_id) DESC) AS frequency
-    FROM orders
-        JOIN customers USING (customer_id)
-    WHERE order_status = 'delivered'
-    GROUP BY customer_unique_id
-),
-MonetaryScore AS (
-    SELECT customer_unique_id,
-           SUM(price) AS total_spent,
-           NTILE(5) OVER (ORDER BY SUM(price) DESC) AS monetary
-    FROM orders
-        JOIN order_items USING (order_id)
-JOIN customers USING (customer_id)
-    WHERE order_status = 'delivered'
-    GROUP BY customer_unique_id
-),
-
--- 2. Assign each customer to a group
-RFM AS (
-    SELECT last_purchase, total_orders, total_spent,
-        CASE
-            WHEN recency = 1 AND frequency + monetary IN (1, 2, 3, 4) THEN "Champions"
-            WHEN recency IN (4, 5) AND frequency + monetary IN (1, 2) THEN "Can't Lose Them"
-            WHEN recency IN (4, 5) AND frequency + monetary IN (3, 4, 5, 6) THEN "Hibernating"
-            WHEN recency IN (4, 5) AND frequency + monetary IN (7, 8, 9, 10) THEN "Lost"
-            WHEN recency IN (2, 3) AND frequency + monetary IN (1, 2, 3, 4) THEN "Loyal Customers"
-            WHEN recency = 3 AND frequency + monetary IN (5, 6) THEN "Needs Attention"
-            WHEN recency = 1 AND frequency + monetary IN (7, 8) THEN "Recent Users"
-            WHEN recency = 1 AND frequency + monetary IN (5, 6) OR
-                recency = 2 AND frequency + monetary IN (5, 6, 7, 8) THEN "Potentital Loyalists"
-            WHEN recency = 1 AND frequency + monetary IN (9, 10) THEN "Price Sensitive"
-            WHEN recency = 2 AND frequency + monetary IN (9, 10) THEN "Promising"
-            WHEN recency = 3 AND frequency + monetary IN (7, 8, 9, 10) THEN "About to Sleep"
-        END AS RFM_Bucket
-    FROM RecencyScore
-        JOIN FrequencyScore USING (customer_unique_id)
-        JOIN MonetaryScore USING (customer_unique_id)
-)
-
--- 3. Calculate group statistics for plotting
-SELECT RFM_Bucket, 
-       AVG(JULIANDAY('now') - JULIANDAY(last_purchase)) AS avg_days_since_purchase, 
-       AVG(total_spent / total_orders) AS avg_sales_per_customer,
-       COUNT(*) AS customer_count
-FROM RFM
-GROUP BY RFM_Bucket
-```
-Next, I will export the data as a CSV file named rfm_df for further data visualization.
-```python
-rfm_df = pd.read_csv('rfm_df.csv')
-rfm_df
-```
-<center>
-      <img src="png/rfm.png"/>
-  </center>
-  
-Let's visualize this. I'll plot each group using average recency on the x-axis, average sales per customer on the y-axis and circle size to represent the amount of customers in each group:
-
-```python
-plt.figure(figsize=(12, 8))
-scatter = plt.scatter(df['avg_days_since_purchase'], df['avg_sales_per_customer'],
-    s=df['customer_count']*0.55, c=sns.color_palette('Set3', len(df)))
-plt.xlabel('Average days since the last purchase', fontsize=14)
-plt.ylabel('Average sales per customer', fontsize=14)
-plt.title('RFM segmentation of customers')
-plt.grid(True)
-for i, text in enumerate(df['RFM_Bucket']):
-    plt.annotate(text, (df['avg_days_since_purchase'][i], df['avg_sales_per_customer'][i]), 
-        ha='center', va='center')
-plt.gca().invert_xaxis()
-plt.xlim(2530, 2070)
-plt.ylim(0, 380)
-plt.show()
-```
-<center>
-      <img src="png/rfm.visual.png"/>
-  </center>
-  
-The previous plot shows us where each customer segment falls in terms of recency and sales. For example, the 'Champions' segment on the top right has high sales and has purchased recently, while the 'Lost' segment on the opposite side has low sales and no recent purchases.
-Let's build a plot of the proportion of one-time customers vs repeat customers to gain more insight into how loyal are people who buy through Olist:
-
-```python
-# Calculate customer purchase frequency
-customer_orders = df.groupby('customer_unique_id')['order_id'].nunique().reset_index()
-customer_orders['customer_type'] = customer_orders['order_id'].apply(lambda x: 'repeat' if x > 1 else 'one-time')
-
-# Calculate proportions
-df['proportions'] = customer_orders['customer_type'].value_counts(normalize=True) * 100
-```  
-```python
-# Calculate customer purchase frequency
-customer_orders = df.groupby('customer_unique_id')['order_id'].nunique().reset_index()
-customer_orders['customer_type'] = customer_orders['order_id'].apply(lambda x: 'repeat' if x > 1 else 'one-time')
-
-# Calculate proportions
-proportions= customer_orders['customer_type'].value_counts(normalize=True) * 100
-
-fig, ax = plt.subplots()
-ax.pie(proportions, labels = proportions.index, startangle=5,autopct='%1.2f%%')
-ax.set_title('Proportion of one-time vs repeat customers')
-fig.set_facecolor('white')
-plt.show()
-```
-<center>
-      <img src="png/onetime.png"/>
-  </center>
-  
-As we can see most customers only place a single order through Olist. This may suggest the market behaves like a one-shot purchase environment — a key consideration for both retention efforts and product strategy.
-While rare, repeat customers likely represent a more loyal segment worth deeper investigation. Their behavior may differ significantly in terms of product selection, satisfaction, and lifetime value.
-Further segmentation could explore whether these customers:
-- Leave more positive reviews.
-- Spend more per order.
-- Experience fewer delivery issues.
-Understanding and nurturing this small, loyal group could have a disproportionately large impact on long-term business performance.
-
-### 2. Customer lifetime value (CLV):
-
-Customer Lifetime Value (CLV) is a crucial metric in business that measures the predicted value of the future relationship with a customer. Let's calculate CLV for the customers in our dataset.
-
-To start, we'll calculate each of the components of CLV for each client:
-- Purchase Frequency (PF), the number of orders a client placed.
-- Average Order Value (AOV), the sum of payments divided by the number of orders.
-- Average Customer Lifespan (ACL), the number of weeks from the first to the last order, with a minimum value of 1.
-To make the code more readable, I'll calculate each of the CLV components:
-
-```python
-customer_data = df.groupby('customer_unique_id').agg(
-    zip_code_prefix=('customer_zip_code_prefix', 'first'),
-    order_count=('order_id', pd.Series.nunique),
-    total_payment=('payment_value', 'sum'),
-    first_order_day=('order_purchase_timestamp', 'min'),
-    last_order_day=('order_purchase_timestamp', 'max')
-).reset_index()
-
-# Calculate derived metrics
-customer_data['PF'] = customer_data['order_count']
-customer_data['AOV'] = customer_data['total_payment'] / customer_data['order_count']
-days_active = (customer_data['last_order_day'] - customer_data['first_order_day']).dt.days
-customer_data['ACL'] = days_active.apply(lambda x: 1 if x < 7 else x / 7)
-
-# Select relevant columns
-result = customer_data[['customer_unique_id', 'zip_code_prefix', 'PF', 'AOV', 'ACL']]
-
-print(result.head())
-```
-<center>
-      <img src="png/clv.breakdown.png"/>
-  </center>
-  
-Since my goal is to build a map of the distribution of CLV around Brazil, we'll also need to add the latitude and longitude of each zip code prefix. Using the previous query as CTE, we can calculate the average CLV and the number of customers for each zip code prefix. To calculate CLV we just multiply each of its terms:
-                                                      **CLV = PF . AOV . ACL**
-```python
-# Group by zip_code prefix to compute average CLV and customer count
-zip_agg = result.groupby('zip_code_prefix').agg(
-    avg_CLV=('PF', lambda x: (x * result.loc[x.index, 'AOV'] * result.loc[x.index, 'ACL']).mean()),
-    customer_count=('customer_unique_id', 'count')
-).reset_index()
-
-# Merge with geolocation data
-zip_agg = zip_agg.merge(
-    df,
-    left_on='zip_code_prefix',
-    right_on='geolocation_zip_code_prefix',
-    how='left'
-)
-
-# Drop duplicate zip_prefix rows, keeping the first occurrence
-zip_agg = zip_agg.drop_duplicates(subset=['zip_code_prefix'], keep='first')
-
-# Optionally select/rename relevant columns
-zip_agg = zip_agg.rename(columns={
-    'geolocation_lat': 'latitude',
-    'geolocation_lng': 'longitude',
-    'zip_code_prefix': 'zip_prefix'
-})[['zip_prefix', 'avg_CLV', 'customer_count', 'latitude', 'longitude']]
-
-print(zip_agg.head())
-```
-<center>
-      <img src="png/clv.lon.lat.png"/>
-  </center>
-
-With these data we can create an interactive map using the folium library. For each zip code prefix a circle is drawn in the map, using opacity to indicate CLV and size to indicate the number of customers:
-
-```python
-import folium
-# Filter out rows with NaN values in latitude or longitude
-zip_agg_filtered = zip_agg.dropna(subset=['latitude', 'longitude'])
-map = folium.Map(location=[-14.2350, -51.9253], zoom_start=4)
-for i, zip_prefix in zip_agg_filtered.iterrows():
-    folium.CircleMarker(
-        location=[zip_prefix['latitude'], zip_prefix['longitude']],
-        radius=0.1*np.sqrt(zip_prefix['customer_count']),
-        color=None,
-        fill_color='#85001d',
-        fill_opacity=0.1+0.1*np.sqrt(zip_prefix['avg_CLV']/zip_agg['avg_CLV'].max()),
-        popup=(
-            f"<b>Zip Code Prefix:</b> {int(zip_prefix['zip_prefix'])}<br>"
-            f"<b>Average CLV:</b> {int(zip_prefix['avg_CLV'])}<br>"
-            f"<b>Customers:</b> {int(zip_prefix['customer_count'])}"
-        )
-    ).add_to(map)
-map
-```
-<center>
-      <img src="png/map.png"/>
-  </center>
-
-As we can see in the map, most of the customer value for Olist's sellers is concentrated in the south-east of Brazil, in the most populated areas: the state of São Paulo, and around the cities of Rio de Janeiro and Belo Horizonte. These are Brazil’s most economically developed and populous regions, indicating strong purchasing power and customer retention.
-
-📈 **Strategic implications**
-- Target marketing and retention strategies in high-CLV areas like São Paulo and Rio for better ROI.
-- Growth opportunities may exist in emerging cities like Brasília, Curitiba, and Salvador.
-- Regional adaptations may be needed for the North/Northeast to improve CLV, such as tailored logistics, local partnerships, or digital onboarding.
 
 # CONCLUSION
 
