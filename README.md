@@ -3,7 +3,7 @@
 # Table of Contents
 
 1. **[SCOPE](#scope)**
-   - [Project Objective](#project_objective)
+   - [Project Objective](#project-objective)
    - [Technologies Used](#technologies_used)
    - [About the company](#About_the_company)
    - [Dataset](#dataset)
